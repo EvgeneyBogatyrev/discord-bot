@@ -1,7 +1,4 @@
-from re import L
-import discord
 from discord.ext import commands
-import os
 import json
 import codecs
 import math
@@ -9,119 +6,18 @@ import asyncio
 from random import randint
 
 from constants import Constants
+from functions import *
 
-bot = commands.Bot(command_prefix='/')
-bot.remove_command("help")
-
-
-STATUS = "NONE"
-EDITING_PAIRS = False
-
-def adjust_rating(user1, user2, win):
-    rating1 = get_rating(user1, ment=True)
-    rating2 = get_rating(user2, ment=True)
-
-    win_chance1 = 1 / (1 + 10 ** ((rating2 - rating1) / Constants.ELO_DIFF))
-    win_chance2 = 1 / (1 + 10 ** ((rating1 - rating2) / Constants.ELO_DIFF))
-
-    diff1 = int((int(win) - win_chance1) * Constants.ELO_STEP)
-    diff2 = int((int(not win) - win_chance2) * Constants.ELO_STEP)
-
-    if win and diff1 == 0:
-        diff1 = 1
-    if win and diff2 == 0:
-        diff2 = -1
-    if not win and diff1 == 0:
-        diff1 = -1
-    if not win and diff2 == 0:
-        diff2 = 1
-
-    update_rating(user1, rating1 + diff1, ment=True)
-    update_rating(user2, rating2 + diff2, ment=True)
-
-    return diff1, diff2
+bot = commands.Bot(command_prefix='/')      # bot react on messages that start with '/'
+bot.remove_command("help")                  # inmplement custom /help command
 
 
-def format_to_allowed(line):
-    new_line = ""
-    for c in line:
-        if c in Constants.letters_match.keys():
-            new_line += Constants.letters_match[c]
-            continue
-        if c not in Constants.allowed_letters:
-            continue
-        new_line += c
-    return new_line
+STATUS = "NONE"                             # status of the tournament
+                                            # NONE - no tournament
+                                            # REGISTR - the registration is on
+                                            # TOURN - the tournament is on
 
-
-def read_status():
-    global STATUS
-    if not os.path.exists("data/status.txt"):
-        STATUS = "NONE"
-        return
-    with open("data/status.txt", "r") as f:
-        STATUS = f.readline()
-    return STATUS
-
-
-def check_class(class_name):
-    class_name = class_name.strip().lower()
-    with open("data/patapons.txt", "r") as f:
-        lines = list(f.readlines())
-    for i in range(len(lines)):
-        lines[i] = lines[i].strip().lower()
-    if class_name not in lines:
-        return False
-    return True
-
-
-def get_rating(name, ment=False):
-    if not ment:
-        with codecs.open("data/rating.csv", "r", 'utf-8') as f:
-            lines = f.readlines()
-        for line in lines:
-            words = list(line.split(","))
-            if words[0] == name.mention:
-                return int(words[2])
-        return -1
-    else:
-        with codecs.open("data/rating.csv", "r", 'utf-8') as f:
-            lines = f.readlines()
-        for line in lines:
-            words = list(line.split(","))
-            if words[0] == name:
-                return int(words[2])
-        return -1
-
-
-def update_rating(name, rating, ment=False):
-    if not ment:
-        with codecs.open("data/rating.csv", "r", 'utf-8') as f:
-            lines = f.readlines()
-        data = {}
-        for line in lines:
-            words = list(line.split(","))
-            data[(words[0], words[1])] = int(words[2][:-1])
-            if words[0] == name.mention:
-                data[(words[0], words[1])] = rating
-        else:
-            data[(name.mention, format_to_allowed(name.name))] = rating
-    else:
-        with codecs.open("data/rating.csv", "r", 'utf-8') as f:
-            lines = f.readlines()
-        data = {}
-        for line in lines:
-            words = list(line.split(","))
-            data[(words[0], words[1])] = int(words[2][:-1])
-            if words[0] == name:
-                data[(words[0], words[1])] = rating
-
-    new_lines = ""
-    for key in data:
-        new_lines += key[0] + "," + key[1] + "," + str(data[key]) + "\n"
-
-    with open("data/rating.csv", "w") as f:
-        f.write(new_lines)
+EDITING_PAIRS = False                       # mutex to prevent double reading/writing
 
 
 @commands.has_permissions(administrator=True)
@@ -496,8 +392,6 @@ async def reg(ctx, *message):
     with open("data/current_tournament.json", "w") as f:
         json.dump(tour_data, f)
 
-    #await ctx.reply(reply)
-    #await ctx.channel.purge(limit=1)
     await ctx.message.delete(delay=5)
     await ctx.send(f"{ctx.author.mention} (Rating: {rating}) has successfully registred.")
 
@@ -576,7 +470,7 @@ async def start(ctx):
         json.dump([], f)
     with open("data/current_tournament.json", "r") as f:
         part_data = json.load(f)
-    participants = sorted(part_data["participants"], key=lambda x: get_rating(x, ment=True), reverse=True)
+    participants = sorted(part_data["participants"], key=lambda x: get_rating(x, mention=True), reverse=True)
     print(participants)
     part_points = {"participants" : participants, "points" : [0] * len(participants)}
 
@@ -586,8 +480,6 @@ async def start(ctx):
         log_num += 1
     with open("data/max_rounds.txt", "w") as f:
         f.write(str(log_num))
-
-    #await ctx.reply(" ".join(participants))
 
     with open("data/points.json", "w") as f:
         json.dump(part_points, f)
@@ -751,7 +643,7 @@ async def confirm_game(ctx, player, opponent, your_score, opponent_score):
         diff2 = str(diff2)
 
     await ctx.send(f"{player} VS {opponent}\nResult: {your_score}:{opponent_score}\n\
-        \nRating changes:\n{player} : {get_rating(player, ment=True)} ({diff1})\n{opponent} : {get_rating(opponent, ment=True)} ({diff2})")
+        \nRating changes:\n{player} : {get_rating(player, mention=True)} ({diff1})\n{opponent} : {get_rating(opponent, mention=True)} ({diff2})")
 
     if len(unresolved) == 0:
         await start_next_round(ctx)
@@ -788,7 +680,8 @@ async def end_reg(ctx):
 @bot.command() 
 async def print_status(ctx):
     global STATUS
-    print(STATUS)
+    STATUS = read_status()
+    await ctx.reply(STATUS)
 
 
 @bot.command() 
@@ -812,24 +705,6 @@ async def metagame(ctx):
         line += f"{elem} : {sort_data[elem]} ({round(100 * sort_data[elem] / summ, 2)}%)\n"
     await ctx.reply(line)
 
-
-def create_missing_data():
-    if not os.path.exists("data/metagame.json"):
-        meta_data = {}
-        with open("data/patapons.txt", "r") as f:
-            lines = f.readlines()
-        for line in lines:
-            meta_data[line[:-1]] = 0
-        with open("data/metagame.json", "w") as f:
-            json.dump(meta_data, f)
-
-    if not os.path.exists("data/await_confirmation.json"):
-        with open("data/await_confirmation.json", "w") as f:
-            json.dump([], f)
-
-    if not os.path.exists("data/played_pairs.json"):
-        with open("data/played_pairs.json", "w") as f:
-            json.dump([], f)
 
 
 read_status()
