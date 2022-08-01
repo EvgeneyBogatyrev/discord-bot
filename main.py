@@ -2,101 +2,28 @@ import discord
 from discord.ext import commands
 import os
 import json
-import datetime
 import codecs
 import math
 import asyncio
 from random import randint
 
-from requests import get
+from constants import Constants
 
 bot = commands.Bot(command_prefix='/')
 
-allowed_letters = " ()abcdefghijklmnopqrstuvwxyz1234567890ABCDEFJHIJKLMNOPQRSTUVWXYZ!#$%&?,."
-
-letters_match = {
-	"с" : "s",
-	"к" : "k",
-	"в" : "v",
-	"и" : "i",
-	"д" : "d",
-	"а" : "a",
-	"б" : "b",
-	"г" : "g",
-	"е" : "e",
-	"ё" : "e",
-	"ж" : "j",
-	"з" : "z",
-	"й" : "i",
-	"л" : "l",
-	"м" : "m",
-	"н" : "n",
-	"о" : "o",
-	"п" : "p",
-	"р" : "r",
-	"т" : "t",
-	"у" : "u",
-	"ф" : "f",
-	"х" : "h",
-	"ц" : "c",
-	"ч" : "ch",
-	"ш" : "sh",
-	"щ" : "sch",
-	"ы" : "y",
-	"э" : "e",
-	"ю" : "yu",
-	"я" : "ya",
-    "С" : "S",
-	"К" : "K",
-	"В" : "V",
-	"И" : "I",
-	"Д" : "D",
-	"А" : "A",
-	"Б" : "B",
-	"Г" : "G",
-	"Е" : "E",
-	"Ё" : "E",
-	"Ж" : "J",
-	"З" : "Z",
-	"Й" : "I",
-	"Л" : "L",
-	"М" : "M",
-	"Н" : "N",
-	"О" : "O",
-	"П" : "P",
-	"Р" : "R",
-	"Т" : "T",
-	"У" : "U",
-	"Ф" : "F",
-	"Х" : "H",
-	"Ц" : "C",
-	"Ч" : "CH",
-	"Ш" : "SH",
-	"Щ" : "SCH",
-	"Ы" : "Y",
-	"Э" : "E",
-	"Ю" : "YU",
-	"Я" : "YA"
-}
 
 STATUS = "NONE"
-START_RATING = 100
-ELO_STEP = 16
-ELO_DIFF = 50
-POINTS_FOR_WIN = 10
-CONFIRM_SLEEP = 120
-
 EDITING_PAIRS = False
 
 def adjust_rating(user1, user2, win):
     rating1 = get_rating(user1, ment=True)
     rating2 = get_rating(user2, ment=True)
 
-    win_chance1 = 1 / (1 + 10 ** ((rating2 - rating1) / ELO_DIFF))
-    win_chance2 = 1 / (1 + 10 ** ((rating1 - rating2) / ELO_DIFF))
+    win_chance1 = 1 / (1 + 10 ** ((rating2 - rating1) / Constants.ELO_DIFF))
+    win_chance2 = 1 / (1 + 10 ** ((rating1 - rating2) / Constants.ELO_DIFF))
 
-    diff1 = int((int(win) - win_chance1) * ELO_STEP)
-    diff2 = int((int(not win) - win_chance2) * ELO_STEP)
+    diff1 = int((int(win) - win_chance1) * Constants.ELO_STEP)
+    diff2 = int((int(not win) - win_chance2) * Constants.ELO_STEP)
 
     if win and diff1 == 0:
         diff1 = 1
@@ -116,10 +43,10 @@ def adjust_rating(user1, user2, win):
 def format_to_allowed(line):
     new_line = ""
     for c in line:
-        if c in letters_match.keys():
-            new_line += letters_match[c]
+        if c in Constants.letters_match.keys():
+            new_line += Constants.letters_match[c]
             continue
-        if c not in allowed_letters:
+        if c not in Constants.allowed_letters:
             continue
         new_line += c
     return new_line
@@ -201,7 +128,7 @@ async def lose(ctx, message):
         data = json.load(f)
     for i in range(len(data["participants"])):
         if data["participants"][i] == message:
-            data["points"][i] -= POINTS_FOR_WIN
+            data["points"][i] -= Constants.POINTS_FOR_WIN
             break
     with open("data/points.json", "w") as f:
         json.dump(data, f)
@@ -213,7 +140,7 @@ async def win(ctx, message):
         data = json.load(f)
     for i in range(len(data["participants"])):
         if data["participants"][i] == message:
-            data["points"][i] += POINTS_FOR_WIN
+            data["points"][i] += Constants.POINTS_FOR_WIN
             break
     with open("data/points.json", "w") as f:
         json.dump(data, f)
@@ -350,7 +277,7 @@ async def start_next_round(ctx, increment=True, no_sort=False):
         line += f"{participants[-1]}, you skip this round (auto win)\n"
         for i in range(len(part_points["participants"])):
             if part_points["participants"][i] == participants[-1]:
-                part_points["points"][i] += POINTS_FOR_WIN
+                part_points["points"][i] += Constants.POINTS_FOR_WIN
 
     with open("data/points.json", "w") as f:
         json.dump(part_points, f)
@@ -437,8 +364,6 @@ async def drop(ctx):
         await ctx.send(f"{ctx.author.mention} dropped from the tournament. See you next time!")
         if opponent is not None:
             await confirm_game(ctx, ctx.author.mention, opponent, 0, 1)
-
-        #update_rating(ctx.author.mention, max(0, get_rating(ctx.author.mention, ment=True) - 10), ment=True)
             
 
 @commands.has_permissions(administrator=True)
@@ -487,24 +412,7 @@ async def drop_player(ctx, message):
 
 @bot.command()
 async def help_me(ctx):
-    line = "```/help_me -- show this message\n\
-/reg -- register for the tournament\n\
-/result -- write the result of your match (ex. '/result 3-2' -- you win 3 and lose 2 games)\n\
-/confirm -- confirm the results of the game your opponent sent\n\
-/refute -- refute the results of the game your opponent sent\n\
-/drop -- drop from the tournament\n\
-/leaderboard -- show the leaderboard\n\
-/metagame -- show classes popularity (not available during registration)\n\
-/start_reg (admin only) -- start registration for the new tournament\n\
-/end_reg (admin only) -- end registration for current tournament\n\
-/start (admin only) -- begin the tournament\n\
-/show_status (admin only) -- show all the participants of the tournament\n\
-/end_round (admin only) -- end round by force\n\
-/end_tournament (admin only) -- end tournament by force\n\
-/restart_round (admin only) -- restart tournament by force\n\
-/drop_player (admin only) -- kick player from the tournament\n\
-```"
-    await ctx.reply(line)
+    await ctx.reply(Constants.HELP)
 
 
 @bot.command()
@@ -554,7 +462,7 @@ async def reg(ctx, *message):
 
     rating = get_rating(ctx.author)
     if rating == -1:
-        rating = START_RATING
+        rating = Constants.START_RATING
         update_rating(ctx.author, rating)
 
     reply = f"Success!\n{ctx.author.mention}\nRating: {rating}\n1) {classes[0]}\n2) {classes[1]}\n3) {classes[2]}"   
@@ -722,7 +630,7 @@ async def result(ctx, message):
             break
 
     await ctx.send(f"{opponent}, confirm that you won {opponent_score} and lost {your_score} games against \
-{ctx.author.mention}.\nTo confirm type /confirm or just wait 2 minutes.\nTo refute type /refute.", delete_after=CONFIRM_SLEEP)
+{ctx.author.mention}.\nTo confirm type /confirm or just wait 2 minutes.\nTo refute type /refute.", delete_after=Constants.CONFIRM_SLEEP)
 
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
@@ -732,7 +640,7 @@ async def result(ctx, message):
         json.dump(await_conf, f)
 
     EDITING_PAIRS = False
-    await asyncio.sleep(CONFIRM_SLEEP)
+    await asyncio.sleep(Constants.CONFIRM_SLEEP)
     await confirm(ctx, timeout=True)
 
 @bot.command()
@@ -797,14 +705,12 @@ async def confirm_game(ctx, player, opponent, your_score, opponent_score):
                 points_data["points"][i] += 10 + your_score - opponent_score
             elif points_data["participants"][i] == opponent:
                 points_data["points"][i] += opponent_score
-        #fix_ratings(ctx.author.mention, opponent, True, your_score - opponent_score)
     elif opponent_score > your_score:
         for i in range(len(points_data["participants"])):
             if points_data["participants"][i] == opponent:
                 points_data["points"][i] += 10 + opponent_score - your_score
             elif points_data["participants"][i] == player:
                 points_data["points"][i] += your_score
-        #fix_ratings(ctx.author.mention, opponent, False, opponent_score - your_score)
 
     with open("data/points.json", "w") as f:
         json.dump(points_data, f)
@@ -884,23 +790,27 @@ async def metagame(ctx):
     await ctx.reply(line)
 
 
-if not os.path.exists("data/metagame.json"):
-    meta_data = {}
-    with open("data/patapons.txt", "r") as f:
-        lines = f.readlines()
-    for line in lines:
-        meta_data[line[:-1]] = 0
-    with open("data/metagame.json", "w") as f:
-        json.dump(meta_data, f)
+def create_missing_data():
+    if not os.path.exists("data/metagame.json"):
+        meta_data = {}
+        with open("data/patapons.txt", "r") as f:
+            lines = f.readlines()
+        for line in lines:
+            meta_data[line[:-1]] = 0
+        with open("data/metagame.json", "w") as f:
+            json.dump(meta_data, f)
 
-if not os.path.exists("data/await_confirmation.json"):
-    with open("data/await_confirmation.json", "w") as f:
-        json.dump([], f)
+    if not os.path.exists("data/await_confirmation.json"):
+        with open("data/await_confirmation.json", "w") as f:
+            json.dump([], f)
 
-if not os.path.exists("data/played_pairs.json"):
-    with open("data/played_pairs.json", "w") as f:
-        json.dump([], f)
+    if not os.path.exists("data/played_pairs.json"):
+        with open("data/played_pairs.json", "w") as f:
+            json.dump([], f)
 
 
-read_status()   
-bot.run("MTAwMTAyMDY4MDgxMDI3MDc4MA.G2p0dq.5N1-ebRUymVjx913Ex7DQ5pmS4OCO2-jxYamO8")
+read_status()
+with open("data/token.txt", "r") as f:
+    token = f.readline()
+
+bot.run(token)
