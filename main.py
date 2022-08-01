@@ -1,3 +1,4 @@
+from re import L
 import discord
 from discord.ext import commands
 import os
@@ -10,6 +11,7 @@ from random import randint
 from constants import Constants
 
 bot = commands.Bot(command_prefix='/')
+bot.remove_command("help")
 
 
 STATUS = "NONE"
@@ -59,6 +61,7 @@ def read_status():
         return
     with open("data/status.txt", "r") as f:
         STATUS = f.readline()
+    return STATUS
 
 
 def check_class(class_name):
@@ -411,8 +414,28 @@ async def drop_player(ctx, message):
 
 
 @bot.command()
-async def help_me(ctx):
-    await ctx.reply(Constants.HELP)
+async def help(ctx, *message):
+    if len(message) == 0:
+        await ctx.reply(Constants.HELP)
+    else:
+        message = list(set(message))
+        bad_commands = []
+        for elem in message:
+            if elem == "drop":
+                status = read_status()
+                if status == "REGISTR":
+                    await ctx.reply("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
+                else:
+                    await ctx.reply("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
+            elif elem in Constants.HELP_COMMAND:
+                await ctx.reply("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
+            else:
+                bad_commands.append(elem)
+        if len(bad_commands) > 0:
+            line = "Unknown commands:"
+            for elem in bad_commands:
+                line += " " + elem
+            await ctx.reply(line)
 
 
 @bot.command()
@@ -593,7 +616,7 @@ async def result(ctx, message):
 
     for elem in await_conf:
         if ctx.author.mention in elem["players"]:
-            await ctx.reply("!!! Your game's result has already been saved. Please, confirm or refute it. !!!")
+            await ctx.reply("!!! Your game's result has already been saved. Please, confirm or reject it. !!!")
             return
 
     with open("data/pairs.json", "r") as f:
@@ -630,7 +653,7 @@ async def result(ctx, message):
             break
 
     await ctx.send(f"{opponent}, confirm that you won {opponent_score} and lost {your_score} games against \
-{ctx.author.mention}.\nTo confirm type /confirm or just wait 2 minutes.\nTo refute type /refute.", delete_after=Constants.CONFIRM_SLEEP)
+{ctx.author.mention}.\nTo confirm type /confirm or just wait 2 minutes.\nTo reject type /reject.", delete_after=Constants.CONFIRM_SLEEP)
 
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
@@ -670,7 +693,7 @@ async def confirm(ctx, timeout=False):
             await ctx.reply("You have no pending games.")
 
 @bot.command()
-async def refute(ctx):
+async def reject(ctx):
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
     for speciment in await_conf:
