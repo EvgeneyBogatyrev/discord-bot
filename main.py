@@ -136,7 +136,7 @@ async def reg(ctx, *message):
 
     classes = list(message)
     if len(classes) != 3:
-        await ctx.send(f'{ctx.author.mention}, format your input the following way:\n/reg Taterazay Yarida Yumiyacha')
+        await ctx.send(f'{ctx.author.mention}, format your input the following way:\n/reg class1 class2 class3')
         await ctx.message.delete(delay=5)
         return
     
@@ -144,9 +144,14 @@ async def reg(ctx, *message):
         classes[i] = classes[i].strip()
 
     bad_classes = []
-    for patapon in classes:
+    for i, patapon in enumerate(classes[:]):
         if not check_class(patapon):
-            bad_classes.append(patapon)
+            improved_class = find_closest_class(patapon)
+            if improved_class is None:
+                bad_classes.append(patapon)
+            else:
+                classes[i] = improved_class
+
     if len(bad_classes) != 0:
         line = f'{ctx.author.mention}, unknown classes: '
         for patapon in bad_classes:

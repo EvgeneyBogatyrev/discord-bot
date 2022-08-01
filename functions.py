@@ -59,6 +59,53 @@ def check_class(class_name):
     return True
 
 
+def find_closest_class(class_name):
+    """
+    Find closest class name.
+
+    class_name -- name from user input.
+
+    Returns: Closest class name or None.
+    """
+
+    class_name = class_name.strip().lower()
+    with open("data/patapons.txt", "r") as f:
+        lines = list(f.readlines())
+
+    base = {}
+    for i in range(len(lines)):
+        lines[i] = lines[i].strip().lower()
+        
+        error_index = 0
+        for true_sym, fake_sym in zip(lines[i], class_name):
+            if true_sym != fake_sym:
+                error_index += 1
+        error_index += abs(len(class_name) - len(lines[i]))
+
+        base[lines[i]] = error_index
+
+    min_error = -1
+    best_class = None
+    alert = False
+
+    for cl in base:
+        err = base[cl]
+        if min_error == err:
+            alert = True
+        if min_error == -1 or min_error > err:
+            alert = False
+            min_error = err
+            best_class = cl
+
+    if alert:
+        return None
+    if len(best_class) / min_error < 2:
+        return None
+
+    return best_class
+
+
+
 def create_missing_data():
     """
     Create all files in data folder.
