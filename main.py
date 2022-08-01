@@ -5,29 +5,129 @@ import json
 import datetime
 import codecs
 import math
+import asyncio
+from random import randint
 
 from requests import get
 
-
 bot = commands.Bot(command_prefix='/')
 
-allowed_letters = "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFJHIJKLMNOPQRSTUVWXYZ!#$%&?"
+allowed_letters = " ()abcdefghijklmnopqrstuvwxyz1234567890ABCDEFJHIJKLMNOPQRSTUVWXYZ!#$%&?,."
+
+letters_match = {
+	"с" : "s",
+	"к" : "k",
+	"в" : "v",
+	"и" : "i",
+	"д" : "d",
+	"а" : "a",
+	"б" : "b",
+	"г" : "g",
+	"е" : "e",
+	"ё" : "e",
+	"ж" : "j",
+	"з" : "z",
+	"й" : "i",
+	"л" : "l",
+	"м" : "m",
+	"н" : "n",
+	"о" : "o",
+	"п" : "p",
+	"р" : "r",
+	"т" : "t",
+	"у" : "u",
+	"ф" : "f",
+	"х" : "h",
+	"ц" : "c",
+	"ч" : "ch",
+	"ш" : "sh",
+	"щ" : "sch",
+	"ы" : "y",
+	"э" : "e",
+	"ю" : "yu",
+	"я" : "ya",
+    "С" : "S",
+	"К" : "K",
+	"В" : "V",
+	"И" : "I",
+	"Д" : "D",
+	"А" : "A",
+	"Б" : "B",
+	"Г" : "G",
+	"Е" : "E",
+	"Ё" : "E",
+	"Ж" : "J",
+	"З" : "Z",
+	"Й" : "I",
+	"Л" : "L",
+	"М" : "M",
+	"Н" : "N",
+	"О" : "O",
+	"П" : "P",
+	"Р" : "R",
+	"Т" : "T",
+	"У" : "U",
+	"Ф" : "F",
+	"Х" : "H",
+	"Ц" : "C",
+	"Ч" : "CH",
+	"Ш" : "SH",
+	"Щ" : "SCH",
+	"Ы" : "Y",
+	"Э" : "E",
+	"Ю" : "YU",
+	"Я" : "YA"
+}
 
 STATUS = "NONE"
 START_RATING = 100
+ELO_STEP = 16
+ELO_DIFF = 50
+POINTS_FOR_WIN = 10
+CONFIRM_SLEEP = 120
+
+EDITING_PAIRS = False
+
+def adjust_rating(user1, user2, win):
+    rating1 = get_rating(user1, ment=True)
+    rating2 = get_rating(user2, ment=True)
+
+    win_chance1 = 1 / (1 + 10 ** ((rating2 - rating1) / ELO_DIFF))
+    win_chance2 = 1 / (1 + 10 ** ((rating1 - rating2) / ELO_DIFF))
+
+    diff1 = int((int(win) - win_chance1) * ELO_STEP)
+    diff2 = int((int(not win) - win_chance2) * ELO_STEP)
+
+    if win and diff1 == 0:
+        diff1 = 1
+    if win and diff2 == 0:
+        diff2 = -1
+    if not win and diff1 == 0:
+        diff1 = -1
+    if not win and diff2 == 0:
+        diff2 = 1
+
+    update_rating(user1, rating1 + diff1, ment=True)
+    update_rating(user2, rating2 + diff2, ment=True)
+
+    return diff1, diff2
 
 
 def format_to_allowed(line):
     new_line = ""
     for c in line:
+        if c in letters_match.keys():
+            new_line += letters_match[c]
+            continue
         if c not in allowed_letters:
             continue
         new_line += c
     return new_line
 
+
 def read_status():
     global STATUS
-    if not os.path.exists("data\\status.txt"):
+    if not os.path.exists("data/status.txt"):
         STATUS = "NONE"
         return
     with open("data/status.txt", "r") as f:
@@ -94,32 +194,6 @@ def update_rating(name, rating, ment=False):
         f.write(new_lines)
 
 
-def fix_ratings(participants):
-    
-    ratings = []
-    for p in participants:
-        ratings.append(get_rating(p, ment=True))
-    
-    avg = sum(ratings) / len(ratings)
-
-    for i in range(len(participants) // 2):
-        if ratings[i] >= avg:
-            ratings[i] += 10
-        else:
-            ratings[i] += max(10, int(0.5 * (avg - ratings[i])))
-    for i in range(len(participants) // 2 + (len(participants) % 2), len(participants)):
-        if ratings[i] <= avg:
-            ratings[i] -= 10
-        else:
-            ratings[i] -= max(10, int(0.5 * (ratings[i] - avg)))
-    
-    for i in range(len(participants)):
-        update_rating(participants[i], ratings[i], ment=True)
-
-
-            
-
-
 @commands.has_permissions(administrator=True)
 @bot.command()
 async def lose(ctx, message):
@@ -127,7 +201,7 @@ async def lose(ctx, message):
         data = json.load(f)
     for i in range(len(data["participants"])):
         if data["participants"][i] == message:
-            data["points"][i] -= 3
+            data["points"][i] -= POINTS_FOR_WIN
             break
     with open("data/points.json", "w") as f:
         json.dump(data, f)
@@ -139,25 +213,109 @@ async def win(ctx, message):
         data = json.load(f)
     for i in range(len(data["participants"])):
         if data["participants"][i] == message:
-            data["points"][i] += 3
+            data["points"][i] += POINTS_FOR_WIN
             break
     with open("data/points.json", "w") as f:
         json.dump(data, f)
 
 
-@commands.has_permissions(administrator=True)
-@bot.command() 
-async def restart_round(ctx):
-    global STATUS
+async def end_current_tournament(ctx):
+    line = "The tournament has ended.\nThe results are the following:\n\n"
+    
+    with open("data/points.json", "r") as f:
+        part_points = json.load(f)
+
+    part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+    part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+
+    for i in range(len(part_points["participants"])):
+        line += f"{i + 1}) " + part_points["participants"][i]
+        line += " - "
+        line += str(part_points["points"][i]) + "\n"
+
+    status = "NONE"
+    with open("data/status.txt", "w") as f:
+        f.write(status)
+
+    await ctx.reply(line)
+
+
+async def start_next_round(ctx, increment=True, no_sort=False):
     with open("data/round_n.txt", "r") as f:
         n = f.readline()
+
+    with open("data/max_rounds.txt", "r") as f:
+        max_num = f.readline()
 
     with open("data/points.json", "r") as f:
         part_points = json.load(f)
     
-    part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-    part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-    
+    if not no_sort:
+        part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+        part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+
+    if len(part_points["participants"]) % 2 == 1:
+        with open("data/outsiders.json", "r") as f:
+            outsiders = json.load(f)
+
+        i = len(part_points["participants"]) - 1
+        while part_points["participants"][i] in outsiders:
+            i -= 1
+            if i < 0:
+                i = len(part_points["participants"]) - 1
+                break
+        man = part_points["participants"].pop(i)
+        score_of_man = part_points["points"].pop(i)
+        part_points["participants"].append(man)
+        part_points["points"].append(score_of_man)
+
+        outsiders.append(man)
+
+        with open("data/outsiders.json", "w") as f:
+            json.dump(outsiders, f)
+
+    def check_cringe(array):
+        with open("data/played_pairs.json", "r") as f:
+            played_pairs = json.load(f)
+        for i in range(len(array) // 2):
+            cur = [array[2 * i], array[2 * i + 1]]
+            if cur in played_pairs or [cur[1], cur[0]] in played_pairs:
+                return 2 * i
+        return -1
+
+    counter = 0
+    while True:
+        counter += 1
+        if counter > 1000:
+            with open("data/played_pairs.json", "w") as f:
+                json.dump([], f)
+
+        if len(part_points["participants"]) % 2 == 1:
+            number = check_cringe(part_points["participants"][:-1])
+        else:
+            number = check_cringe(part_points["participants"])
+        if number == -1:
+            break
+
+        man = part_points["participants"].pop(number)
+        his_points = part_points["points"].pop(number)
+
+        random_place = randint(0, len(part_points["participants"]) - 1)
+        part_points["participants"].insert(random_place, man)
+        part_points["points"].insert(random_place, his_points)
+
+        print("cringe iteration")
+
+
+    if max_num == n:
+        await end_current_tournament(ctx)
+        return
+
+    if increment: 
+        n = int(n) + 1
+    with open("data/round_n.txt", "w") as f:
+        f.write(str(n))
+
     participants = part_points["participants"]
 
     with open("data/points.json", "w") as f:
@@ -170,28 +328,161 @@ async def restart_round(ctx):
 
     line = f"ROUND {n}:\n\n\n"
 
+
     for i in range(len(participants) // 2):
         pair = (participants[2 * i], participants[2 * i + 1])
         unresolved.append(pair)
+        
+        with open("data/played_pairs.json", "r") as f:
+            played_pairs = json.load(f)
+        played_pairs.append(pair)
+        with open("data/played_pairs.json", "w") as f:
+            json.dump(played_pairs, f)
 
         line += f"{participants[2 * i]}\n1) {part_data['classes'][participants[2 * i]][0]}\n2) {part_data['classes'][participants[2 * i]][1]}\n3) {part_data['classes'][participants[2 * i]][2]}\n"
         line += "\nVS\n\n"
         line += f"{participants[2 * i + 1]}\n1) {part_data['classes'][participants[2 * i + 1]][0]}\n2) {part_data['classes'][participants[2 * i + 1]][1]}\n3) {part_data['classes'][participants[2 * i + 1]][2]}\n"
         line += "\n\n\n"
 
+        
+
     if len(participants) % 2 == 1:
-        line += f"{participants[-1]}, you skip this round (autowin)\n"
+        line += f"{participants[-1]}, you skip this round (auto win)\n"
         for i in range(len(part_points["participants"])):
             if part_points["participants"][i] == participants[-1]:
-                part_points["points"][i] += 3
+                part_points["points"][i] += POINTS_FOR_WIN
 
     with open("data/points.json", "w") as f:
         json.dump(part_points, f)
 
-    await ctx.reply(line)
+    await ctx.send(line)
 
     with open("data/pairs.json", "w") as f:
         json.dump(unresolved, f)
+
+
+@commands.has_permissions(administrator=True)
+@bot.command() 
+async def restart_round(ctx):
+    await start_next_round(ctx, increment=False)
+
+
+@bot.command()
+async def drop(ctx):
+    global STATUS
+
+    with open("data/status.txt", "r") as f:
+        STATUS = f.readline()
+
+    if STATUS == "NONE":
+        await ctx.reply("There is no tournament right now.")
+        return
+
+    elif STATUS == "REGISTR":
+        with open("data/current_tournament.json", "r") as f:
+            data = json.load(f)
+        data["participants"].remove(ctx.author.mention)
+        classes = data["classes"][ctx.author.mention]
+        del data["classes"][ctx.author.mention]
+
+        with open("data/current_tournament.json", "w") as f:
+            json.dump(data, f)
+
+        with open("data/metagame.json", "r") as f:
+            meta_data = json.load(f)
+        for cl in classes:
+            meta_data[cl] -= 1
+        with open("data/metagame.json", "w") as f:
+            json.dump(meta_data, f)
+
+        await ctx.reply(f"{ctx.author.mention} canceled their registration.")
+        return
+
+    else:
+        with open("data/current_tournament.json", "r") as f:
+            data = json.load(f)
+        data["participants"].remove(ctx.author.mention)
+        del data["classes"][ctx.author.mention]
+
+        with open("data/current_tournament.json", "w") as f:
+            json.dump(data, f)
+
+        with open("data/points.json", "r") as f:
+            points_data = json.load(f)
+
+        for i in range(len(points_data["participants"])):
+            if points_data["participants"][i] == ctx.author.mention:
+                del points_data["points"][i]
+                del points_data["participants"][i]
+                break
+
+        with open("data/pairs.json", "r") as f:
+            data = json.load(f)
+
+        opponent = None
+        for pair in data:
+            if ctx.author.mention in pair:
+                opponent = pair[0]
+                if opponent == ctx.author.mention:
+                    opponent = pair[1]
+                data.remove(pair)
+                break
+
+        with open("data/pairs.json", "w") as f:
+            json.dump(data, f)
+                        
+        with open("data/points.json", "w") as f:
+            json.dump(points_data, f)
+
+        await ctx.send(f"{ctx.author.mention} dropped from the tournament. See you next time!")
+        if opponent is not None:
+            await confirm_game(ctx, ctx.author.mention, opponent, 0, 1)
+
+        #update_rating(ctx.author.mention, max(0, get_rating(ctx.author.mention, ment=True) - 10), ment=True)
+            
+
+@commands.has_permissions(administrator=True)
+@bot.command()
+async def drop_player(ctx, message):
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+    data["participants"].remove(message)
+    del data["classes"][message]
+
+    with open("data/current_tournament.json", "w") as f:
+        json.dump(data, f)
+
+    with open("data/points.json", "r") as f:
+        points_data = json.load(f)
+
+    for i in range(len(points_data["participants"])):
+        if points_data["participants"][i] == message:
+            del points_data["points"][i]
+            del points_data["participants"][i]
+            break
+
+    with open("data/pairs.json", "r") as f:
+        data = json.load(f)
+
+    opponent = None
+    for pair in data:
+        if message in pair:
+            opponent = pair[0]
+            if opponent == message:
+                opponent = pair[1]
+            data.remove(pair)
+            break
+
+    with open("data/pairs.json", "w") as f:
+        json.dump(data, f)
+                    
+    with open("data/points.json", "w") as f:
+        json.dump(points_data, f)
+
+    await ctx.send(f"{message} was kicked from the tournament. See you next time!")
+    if opponent is not None:
+        await confirm_game(ctx, message, opponent, 0, 1)
+
 
 
 @bot.command()
@@ -199,16 +490,20 @@ async def help_me(ctx):
     line = "```/help_me -- show this message\n\
 /reg -- register for the tournament\n\
 /result -- write the result of your match (ex. '/result 3-2' -- you win 3 and lose 2 games)\n\
+/confirm -- confirm the results of the game your opponent sent\n\
+/refute -- refute the results of the game your opponent sent\n\
+/drop -- drop from the tournament\n\
 /leaderboard -- show the leaderboard\n\
-/start_registration (admin only) -- start registration for the new tournament\n\
-/end_registration (admin only) -- end registration for current tournament\n\
-/start_tournament (admin only) -- begin the tournament\n\
+/metagame -- show classes popularity (not available during registration)\n\
+/start_reg (admin only) -- start registration for the new tournament\n\
+/end_reg (admin only) -- end registration for current tournament\n\
+/start (admin only) -- begin the tournament\n\
 /show_status (admin only) -- show all the participants of the tournament\n\
 /end_round (admin only) -- end round by force\n\
 /end_tournament (admin only) -- end tournament by force\n\
 /restart_round (admin only) -- restart tournament by force\n\
-/win @player (admin only) -- give 3 point to the player\n\
-/lose @player (admin only) -- take 3 points to the player```"
+/drop_player (admin only) -- kick player from the tournament\n\
+```"
     await ctx.reply(line)
 
 
@@ -223,12 +518,13 @@ async def reg(ctx, *message):
     with open("data/current_tournament.json", 'r') as f:
         tour_data = json.load(f)
     if ctx.author.mention in tour_data["participants"]:
-        await ctx.reply(f'{ctx.author.mention}, you have already registred for this tournament.\nAsk admins if you want to change classes.')
+        await ctx.reply(f'You have already registred for this tournament.\nDrop and register again if you want to change classes.')
         return
 
     classes = list(message)
     if len(classes) != 3:
-        await ctx.reply(f'{ctx.author.mention}, format your input the following way:\n/reg Taterazay Yarida Yumiyacha')
+        await ctx.send(f'{ctx.author.mention}, format your input the following way:\n/reg Taterazay Yarida Yumiyacha')
+        await ctx.message.delete(delay=5)
         return
     
     for i in range(len(classes)):
@@ -242,7 +538,8 @@ async def reg(ctx, *message):
         line = f'{ctx.author.mention}, unknown classes: '
         for patapon in bad_classes:
             line += patapon + " "
-        await ctx.reply(line)
+        await ctx.send(line)
+        await ctx.message.delete(delay=5)
         return
     
     for i in range(len(classes)):
@@ -251,7 +548,8 @@ async def reg(ctx, *message):
     classes = list(set(classes))
     if len(classes) < 3:
         line = f'{ctx.author.mention}, please, select 3 different classes'
-        await ctx.reply(line)
+        await ctx.send(line)
+        await ctx.message.delete(delay=5)
         return
 
     rating = get_rating(ctx.author)
@@ -267,7 +565,19 @@ async def reg(ctx, *message):
     with open("data/current_tournament.json", "w") as f:
         json.dump(tour_data, f)
 
-    await ctx.reply(reply)
+    #await ctx.reply(reply)
+    #await ctx.channel.purge(limit=1)
+    await ctx.message.delete(delay=5)
+    await ctx.send(f"{ctx.author.mention} (Rating: {rating}) has successfully registred.")
+
+    with open("data/metagame.json", "r") as f:
+        meta_data = json.load(f)
+    for cl in classes:
+        meta_data[cl] += 1
+    print(meta_data)
+    with open("data/metagame.json", "w") as f:
+        json.dump(meta_data, f)
+    
 
 
 @commands.has_permissions(administrator=True)
@@ -308,9 +618,10 @@ async def leaderboard(ctx):
         line += str(elem[1]) + get_space(elem[0], str(elem[1]), 20 + longest_rating) + elem[0] + "\n"
     await ctx.reply(line)
 
+
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def start_registration(ctx):
+async def start_reg(ctx):
     global STATUS
     STATUS = "REGISTR"
     with open("data/status.txt", "w") as f:
@@ -318,18 +629,24 @@ async def start_registration(ctx):
     with open(f"data/current_tournament.json", "w") as f:
         data = {"participants" : [], "classes" : {}}
         json.dump(data, f)
-
+    await ctx.send("@everyone registration starts now.\nType /reg and write names of 3 classes you want to play.\n\
+Example: /reg Taterazay Yarida Yumiyacha")
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def start_tournament(ctx):
+async def start(ctx):
     global STATUS
     STATUS = "TOURN"
     with open("data/status.txt", "w") as f:
         f.write("TOURN")
+    with open("data/outsiders.json", "w") as f:
+        json.dump([], f)
+    with open("data/played_pairs.json", "w") as f:
+        json.dump([], f)
     with open("data/current_tournament.json", "r") as f:
         part_data = json.load(f)
     participants = sorted(part_data["participants"], key=lambda x: get_rating(x, ment=True), reverse=True)
+    print(participants)
     part_points = {"participants" : participants, "points" : [0] * len(participants)}
 
     part_number_total = len(participants)
@@ -344,44 +661,33 @@ async def start_tournament(ctx):
     with open("data/points.json", "w") as f:
         json.dump(part_points, f)
 
-    unresolved = []
-
-    line = "ROUND 1:\n\n\n"
-
-    for i in range(len(participants) // 2):
-        pair = (participants[2 * i], participants[2 * i + 1])
-        unresolved.append(pair)
-
-        line += f"{participants[2 * i]}\n1) {part_data['classes'][participants[2 * i]][0]}\n2) {part_data['classes'][participants[2 * i]][1]}\n3) {part_data['classes'][participants[2 * i]][2]}\n"
-        line += "\nVS\n\n"
-        line += f"{participants[2 * i + 1]}\n1) {part_data['classes'][participants[2 * i + 1]][0]}\n2) {part_data['classes'][participants[2 * i + 1]][1]}\n3) {part_data['classes'][participants[2 * i + 1]][2]}\n"
-        line += "\n\n\n"
-
-    if len(participants) % 2 == 1:
-        line += f"{participants[-1]}, you skip this round (autowin)\n"
-        for i in range(len(part_points["participants"])):
-            if part_points["participants"][i] == participants[-1]:
-                part_points["points"][i] += 3
-
-    with open("data/points.json", "w") as f:
-        json.dump(part_points, f)
-
-    await ctx.reply(line)
-
-    with open("data/pairs.json", "w") as f:
-        json.dump(unresolved, f)
-
     with open("data/round_n.txt", "w") as f:
-        f.write("1")
+        f.write("0")
+
+    await start_next_round(ctx, no_sort=True)
 
 
 @bot.command() 
 async def result(ctx, message):
+    global EDITING_PAIRS
+    if EDITING_PAIRS:
+        await asyncio.sleep(5)
+        await result(ctx, message)
+        return
+
     global STATUS
     if STATUS != "TOURN":
         await ctx.reply("The tournament has not started yet.")
         return
         
+    with open("data/await_confirmation.json", "r") as f:
+        await_conf = json.load(f)
+
+    for elem in await_conf:
+        if ctx.author.mention in elem["players"]:
+            await ctx.reply("!!! Your game's result has already been saved. Please, confirm or refute it. !!!")
+            return
+
     with open("data/pairs.json", "r") as f:
         unresolved = json.load(f)
 
@@ -392,15 +698,19 @@ async def result(ctx, message):
         await ctx.reply(f"{ctx.author.mention}, you have no active games.")
         return
     
-    if '-' not in message:
-        await ctx.reply(f"{ctx.author.mention}, correct format is <your wins>-<opponent's wins>.")
+    if '-' not in message and ':' not in message:
+        await ctx.reply(f"{ctx.author.mention}, correct format is <your wins>:<opponent's wins>.")
         return
     
-    res = list(message.split("-"))
+    if '-' in message:
+        res = list(message.split("-"))
+    elif ":" in message:
+        res = list(message.split(":"))
     if len(res) != 2 or res[0] not in "0123" or res[1] not in "0123" or int(res[0]) == int(res[1]):
-        await ctx.reply(f"{ctx.author.mention}, correct format is <your wins>-<opponent's wins>.\nEach number has to be in range 0-3. One has to be higher than other.")
+        await ctx.reply(f"{ctx.author.mention}, correct format is <your wins>:<opponent's wins>.\nEach number has to be in range 0-3. One has to be higher than other.")
         return
-
+    
+    EDITING_PAIRS = True
     your_score = int(res[0])
     opponent_score = int(res[1])
     
@@ -409,8 +719,71 @@ async def result(ctx, message):
             opponent = pair[0]
             if opponent == ctx.author.mention:
                 opponent = pair[1]
-            unresolved.remove(pair)
             break
+
+    await ctx.send(f"{opponent}, confirm that you won {opponent_score} and lost {your_score} games against \
+{ctx.author.mention}.\nTo confirm type /confirm or just wait 2 minutes.\nTo refute type /refute.", delete_after=CONFIRM_SLEEP)
+
+    with open("data/await_confirmation.json", "r") as f:
+        await_conf = json.load(f)
+    await_conf.append({"players" : [ctx.author.mention, opponent], 
+        "score" : [your_score, opponent_score]})
+    with open("data/await_confirmation.json", "w") as f:
+        json.dump(await_conf, f)
+
+    EDITING_PAIRS = False
+    await asyncio.sleep(CONFIRM_SLEEP)
+    await confirm(ctx, timeout=True)
+
+@bot.command()
+async def confirm(ctx, timeout=False):
+    with open("data/await_confirmation.json", "r") as f:
+        await_conf = json.load(f)
+    
+    if timeout:
+        speciment = await_conf[0]
+        if ctx.author.mention in speciment["players"]:
+            score = speciment["score"]
+            await_conf.remove(speciment)
+            with open("data/await_confirmation.json", "w") as f:
+                json.dump(await_conf, f)
+            await confirm_game(ctx, speciment["players"][0], speciment["players"][1], score[0], score[1])
+            return
+    else:
+        for speciment in await_conf:
+            if ctx.author.mention in speciment["players"] and ctx.author.mention == speciment["players"][1]:
+                score = speciment["score"]
+                await_conf.remove(speciment)
+                with open("data/await_confirmation.json", "w") as f:
+                    json.dump(await_conf, f)
+                await confirm_game(ctx, speciment["players"][0], speciment["players"][1], score[0], score[1])
+                break
+        else:
+            await ctx.reply("You have no pending games.")
+
+@bot.command()
+async def refute(ctx):
+    with open("data/await_confirmation.json", "r") as f:
+        await_conf = json.load(f)
+    for speciment in await_conf:
+        if ctx.author.mention in speciment["players"]:
+            await_conf.remove(speciment)
+            with open("data/await_confirmation.json", "w") as f:
+                json.dump(await_conf, f)
+            players = speciment["players"]
+            await ctx.send(f"{players[0]} VS {players[1]} - game results canceled.\nEnter correct results.")
+            break
+    else:
+        await ctx.reply("You have no active games.")
+
+async def confirm_game(ctx, player, opponent, your_score, opponent_score):  
+
+    with open("data/pairs.json", "r") as f:
+        unresolved = json.load(f)
+
+    for pair in unresolved:
+        if player in pair and opponent in pair:
+            unresolved.remove(pair)
 
     with open("data/pairs.json", "w") as f:
         json.dump(unresolved, f)     
@@ -420,194 +793,66 @@ async def result(ctx, message):
 
     if your_score > opponent_score:
         for i in range(len(points_data["participants"])):
-            if points_data["participants"][i] == ctx.author.mention:
-                points_data["points"][i] += 3
+            if points_data["participants"][i] == player:
+                points_data["points"][i] += 10 + your_score - opponent_score
+            elif points_data["participants"][i] == opponent:
+                points_data["points"][i] += opponent_score
         #fix_ratings(ctx.author.mention, opponent, True, your_score - opponent_score)
     elif opponent_score > your_score:
         for i in range(len(points_data["participants"])):
             if points_data["participants"][i] == opponent:
-                points_data["points"][i] += 3
+                points_data["points"][i] += 10 + opponent_score - your_score
+            elif points_data["participants"][i] == player:
+                points_data["points"][i] += your_score
         #fix_ratings(ctx.author.mention, opponent, False, opponent_score - your_score)
-
-
 
     with open("data/points.json", "w") as f:
         json.dump(points_data, f)
 
-    await ctx.reply(f"{ctx.author.mention}, your result has been saved.")
+    diff1, diff2 = adjust_rating(player, opponent, your_score > opponent_score)
 
+    if diff1 >= 0:
+        diff1 = "+" + str(diff1)
+    else:
+        diff1 = str(diff1)
+    
+    if diff2 >= 0:
+        diff2 = "+" + str(diff2)
+    else:
+        diff2 = str(diff2)
+
+    await ctx.send(f"{player} VS {opponent}\nResult: {your_score}:{opponent_score}\n\
+        \nRating changes:\n{player} : {get_rating(player, ment=True)} ({diff1})\n{opponent} : {get_rating(opponent, ment=True)} ({diff2})")
 
     if len(unresolved) == 0:
-
-        with open("data/round_n.txt", "r") as f:
-            n = f.readline()
-
-        with open("data/max_rounds.txt", "r") as f:
-            max_num = f.readline()
-
-        with open("data/points.json", "r") as f:
-            part_points = json.load(f)
-        
-        part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-        part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-
-
-        if max_num == n:
-            line = "@everyone\nThe tournament has ended.\nThe results are the following:\n\n"
-
-            for i in range(len(part_points["participants"])):
-                line += f"{i + 1}) " + part_points["participants"][i] + " " * (20 - len(part_points["participants"][i])) + str(part_points["points"][i]) + "\n"
-
-            status = "NONE"
-            with open("data/status.txt", "w") as f:
-                f.write(status)
-
-            await ctx.reply(line)
-            fix_ratings(part_points["participants"])
-            return
-
-        n = int(n) + 1
-        with open("data/round_n.txt", "w") as f:
-            f.write(str(n))
-
-        
-        participants = part_points["participants"]
-
-        with open("data/points.json", "w") as f:
-            json.dump(part_points, f)
-
-        with open("data/current_tournament.json", "r") as f:
-            part_data = json.load(f)
-
-        unresolved = []
-
-        line = f"ROUND {n}:\n\n\n"
-
-        for i in range(len(participants) // 2):
-            pair = (participants[2 * i], participants[2 * i + 1])
-            unresolved.append(pair)
-
-            line += f"{participants[2 * i]}\n1) {part_data['classes'][participants[2 * i]][0]}\n2) {part_data['classes'][participants[2 * i]][1]}\n3) {part_data['classes'][participants[2 * i]][2]}\n"
-            line += "\nVS\n\n"
-            line += f"{participants[2 * i + 1]}\n1) {part_data['classes'][participants[2 * i + 1]][0]}\n2) {part_data['classes'][participants[2 * i + 1]][1]}\n3) {part_data['classes'][participants[2 * i + 1]][2]}\n"
-            line += "\n\n\n"
-
-        if len(participants) % 2 == 1:
-            line += f"{participants[-1]}, you skip this round round (autowin)\n"
-            for i in range(len(part_points["participants"])):
-                if part_points["participants"][i] == participants[-1]:
-                    part_points["points"][i] += 3
-
-        with open("data/points.json", "w") as f:
-            json.dump(part_points, f)
-
-        await ctx.reply(line)
-
-        with open("data/pairs.json", "w") as f:
-            json.dump(unresolved, f)
+        await start_next_round(ctx)
         
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
 async def end_round(ctx):
-    global STATUS
-    with open("data/round_n.txt", "r") as f:
-        n = f.readline()
-
-    with open("data/max_rounds.txt", "r") as f:
-        max_num = f.readline()
-
-    with open("data/points.json", "r") as f:
-        part_points = json.load(f)
-    
-    part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-    part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-
-
-    if max_num == n:
-        line = "@everyone\nThe tournament has ended.\nThe results are the following:\n\n"
-
-        for i in range(len(part_points["participants"])):
-            line += f"{i + 1}) " + part_points["participants"][i] + " " * (20 - len(part_points["participants"][i])) + str(part_points["points"][i]) + "\n"
-
-        status = "NONE"
-        with open("data/status.txt", "w") as f:
-            f.write(status)
-
-        await ctx.reply(line)
-        fix_ratings(part_points["participants"])
-        return
-
-    n = int(n) + 1
-    with open("data/round_n.txt", "w") as f:
-        f.write(str(n))
-
-    
-    participants = part_points["participants"]
-
-    with open("data/points.json", "w") as f:
-        json.dump(part_points, f)
-
-    with open("data/current_tournament.json", "r") as f:
-        part_data = json.load(f)
-
-    unresolved = []
-
-    line = f"ROUND {n}:\n\n\n"
-
-    for i in range(len(participants) // 2):
-        pair = (participants[2 * i], participants[2 * i + 1])
-        unresolved.append(pair)
-
-        line += f"{participants[2 * i]}\n1) {part_data['classes'][participants[2 * i]][0]}\n2) {part_data['classes'][participants[2 * i]][1]}\n3) {part_data['classes'][participants[2 * i]][2]}\n"
-        line += "\nVS\n\n"
-        line += f"{participants[2 * i + 1]}\n1) {part_data['classes'][participants[2 * i + 1]][0]}\n2) {part_data['classes'][participants[2 * i + 1]][1]}\n3) {part_data['classes'][participants[2 * i + 1]][2]}\n"
-        line += "\n\n\n"
-
-    if len(participants) % 2 == 1:
-        line += f"{participants[-1]}, you skip the first round (autowin)\n"
-        for i in range(len(part_points["participants"])):
-            if part_points["participants"][i] == participants[-1]:
-                part_points["points"][i] += 3
-
-    with open("data/points.json", "w") as f:
-        json.dump(part_points, f)
-
-    await ctx.reply(line)
-
-    with open("data/pairs.json", "w") as f:
-        json.dump(unresolved, f)
+    await start_next_round(ctx)
 
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
 async def end_tournament(ctx):
-    global STATUS
-    with open("data/points.json", "r") as f:
-        part_points = json.load(f)
-    
-    part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
-    part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+    await end_current_tournament(ctx)
 
-    line = "@everyone\nThe tournament has ended.\nThe results are the following:\n\n"
-    for i in range(len(part_points["participants"])):
-        line += f"{i + 1}) " + part_points["participants"][i] + " " * (20 - len(part_points["participants"][i])) + str(part_points["points"][i]) + "\n"
-
-    status = "NONE"
-    with open("data/status.txt", "w") as f:
-        f.write(status)
-
-    await ctx.reply(line)
-    fix_ratings(part_points["participants"])
-    return
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def end_registration(ctx):
+async def end_reg(ctx):
     global STATUS
     STATUS = "NONE"
     with open("data/status.txt", "w") as f:
         f.write("NONE")
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+    line = "The registration has finished. Here are the participants:\n\n"
+    for i, part in enumerate(data["classes"]):
+        line += f"{i + 1}) {part}\n1. {data['classes'][part][0]}\n2. {data['classes'][part][1]}\n3. {data['classes'][part][2]}\n\n"
+    await ctx.send(line)
     
 
 @commands.has_permissions(administrator=True)
@@ -617,6 +862,45 @@ async def print_status(ctx):
     print(STATUS)
 
 
+@bot.command() 
+async def metagame(ctx):
+    with open("data/status.txt", "r") as f:
+        STATUS = f.readline()
+    if STATUS == "REGISTR":
+        await ctx.reply("This command in blocked during the registration to prevent cheating.")
+        return
+    with open("data/metagame.json", "r") as f:
+        meta_data = json.load(f)
+    sort_data = {k: v for k, v in sorted(meta_data.items(), key=lambda item: item[1], reverse=True)}
+    summ = 0
+    for key in meta_data.keys():
+        summ += meta_data[key]
+    if summ == 0:
+        await ctx.reply("Some error has occured. Ask admins to fix it.")
+        return
+    line = "Current metagame:\n"
+    for elem in sort_data.keys():
+        line += f"{elem} : {sort_data[elem]} ({round(100 * sort_data[elem] / summ, 2)}%)\n"
+    await ctx.reply(line)
+
+
+if not os.path.exists("data/metagame.json"):
+    meta_data = {}
+    with open("data/patapons.txt", "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        meta_data[line[:-1]] = 0
+    with open("data/metagame.json", "w") as f:
+        json.dump(meta_data, f)
+
+if not os.path.exists("data/await_confirmation.json"):
+    with open("data/await_confirmation.json", "w") as f:
+        json.dump([], f)
+
+if not os.path.exists("data/played_pairs.json"):
+    with open("data/played_pairs.json", "w") as f:
+        json.dump([], f)
+
 
 read_status()   
-bot.run("MTAwMTAyMDY4MDgxMDI3MDc4MA.GCXgkc.PZPPLPkocviVNXStDhvRwTnM1AjYQ5R7Tn-qmg")
+bot.run("MTAwMTAyMDY4MDgxMDI3MDc4MA.G2p0dq.5N1-ebRUymVjx913Ex7DQ5pmS4OCO2-jxYamO8")
