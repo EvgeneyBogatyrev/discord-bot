@@ -438,6 +438,7 @@ async def print_status(ctx):
 @bot.command() 
 async def show_status(ctx):
     global STATUS
+    STATUS = read_status()
     if STATUS == "NONE":
         await ctx.reply("There is no tournament.")
         return
