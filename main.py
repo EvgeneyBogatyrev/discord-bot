@@ -123,6 +123,7 @@ async def help(ctx, *message):
 @bot.command()
 async def reg(ctx, *message):
     global STATUS
+    STATUS = read_status()
 
     if STATUS != "REGISTR":
         await ctx.reply("The registration has not started yet.\nAsk admins to start the registration.")
@@ -275,6 +276,7 @@ async def result(ctx, message):
         return
 
     global STATUS
+    STATUS = read_status()
     if STATUS != "TOURN":
         await ctx.reply("The tournament has not started yet.")
         return

@@ -183,9 +183,11 @@ def read_status():
     global STATUS
     if not os.path.exists("data/status.txt"):
         STATUS = "NONE"
-        return
-    with open("data/status.txt", "r") as f:
-        STATUS = f.readline()
+        with open("data/status.txt", "w") as f:
+            f.write(STATUS)
+    else:
+        with open("data/status.txt", "r") as f:
+            STATUS = f.readline()
     return STATUS
 
 
