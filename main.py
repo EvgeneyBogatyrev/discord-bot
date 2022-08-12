@@ -123,15 +123,24 @@ async def help(ctx, *message):
 
 @bot.command()
 async def reg(ctx, *message):
-    pass
 
-async def reg1vs1(ctx, *message):
     global STATUS
     STATUS = read_status()
 
     if STATUS != "REGISTR":
         await ctx.reply("The registration has not started yet.\nAsk admins to start the registration.")
         return
+
+    mode = read_mode()
+    if mode == "1vs1":
+        await reg1vs1(ctx, message)
+    elif mode == "2vs2":
+        await reg2vs2(ctx, message)
+    else:
+        await ctx.send(f"Wrong mode: {mode}")
+
+
+async def reg1vs1(ctx, message):
 
     with open("data/current_tournament.json", 'r') as f:
         tour_data = json.load(f)
@@ -145,6 +154,75 @@ async def reg1vs1(ctx, *message):
         await ctx.message.delete(delay=5)
         return
     
+    for i in range(len(classes)):
+        classes[i] = classes[i].strip()
+
+    bad_classes = []
+    for i, patapon in enumerate(classes[:]):
+        if not check_class(patapon):
+            improved_class = find_closest_class(patapon)
+            if improved_class is None:
+                bad_classes.append(patapon)
+            else:
+                classes[i] = improved_class
+
+    if len(bad_classes) != 0:
+        line = f'{ctx.author.mention}, unknown classes: '
+        for patapon in bad_classes:
+            line += patapon + " "
+        await ctx.send(line)
+        await ctx.message.delete(delay=5)
+        return
+    
+    for i in range(len(classes)):
+        classes[i] = classes[i].strip().lower().capitalize()
+
+    classes = list(set(classes))
+    if len(classes) < 3:
+        line = f'{ctx.author.mention}, please, select 3 different classes'
+        await ctx.send(line)
+        await ctx.message.delete(delay=5)
+        return
+
+    rating = get_rating(ctx.author)
+    if rating == -1:
+        rating = Constants.START_RATING
+        update_rating(ctx.author, rating)
+
+    tour_data["participants"].append(ctx.author.mention)
+    tour_data["classes"][ctx.author.mention] = classes
+
+    with open("data/current_tournament.json", "w") as f:
+        json.dump(tour_data, f)
+
+    await ctx.message.delete(delay=5)
+    await ctx.send(f"{ctx.author.mention} (Rating: {rating}) has registred successfully.")
+
+    with open("data/metagame.json", "r") as f:
+        meta_data = json.load(f)
+    for cl in classes:
+        meta_data[cl] += 1
+    with open("data/metagame.json", "w") as f:
+        json.dump(meta_data, f)
+
+
+async def reg2vs2(ctx, message):
+
+    with open("data/current_tournament.json", 'r') as f:
+        tour_data = json.load(f)
+    if ctx.author.mention in tour_data["participants"]:
+        await ctx.reply(f'You have already registred for this tournament.\nDrop and register again if you want to change classes.')
+        return
+
+    data = list(message)
+    if len(classes) != 5:
+        await ctx.send(f'{ctx.author.mention}, format your input the following way:\n/reg friend-tag class1 class2 class3 class4')
+        await ctx.message.delete(delay=5)
+        return
+    
+    name = classes[0].strip()
+    if name[0] != "<"
+
     for i in range(len(classes)):
         classes[i] = classes[i].strip()
 
