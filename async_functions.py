@@ -1,4 +1,5 @@
 import json
+import math
 from random import randint
 
 from functions import *
@@ -85,6 +86,11 @@ async def start_next_round(ctx, increment=True, no_sort=False):
     with open("data/points.json", "r") as f:
         part_points = json.load(f)
     
+    number_of_participants = len(part_points["participants"])
+    max_num = int(math.log2(number_of_participants))
+    if 2 ** max_num != number_of_participants:
+        max_num += 1
+
     if not no_sort:
         part_points["participants"] = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
         part_points["points"] = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
