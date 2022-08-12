@@ -104,7 +104,8 @@ You won't be able to come back.",
         "leaderboard" : "Show the leaderboard.",
         "metagame" : "Show the metagame.",
         "start_reg" : "Start the registration for the tournament.\n\
-Only for admins.",
+Only for admins.\n\
+Type: ```/start_reg mode``` where mode is either 1vs1 or 2vs2.",
         "end_reg" : "End the registration for the tournament.\n\
 Only for admins.",
         "start" :  "Start the tournament.\n\

@@ -191,6 +191,18 @@ def read_status():
     return STATUS
 
 
+def read_mode():
+    """
+    Return current mode.
+    """
+
+    if not os.path.exists("data/mode.txt"):
+        return "1vs1"
+    with open("data/mode.txt", "r") as f:
+        mode = f.readline()
+    return mode
+
+
 def update_rating(name, rating, mention=False):
     """
     Update rating of the user.

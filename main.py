@@ -120,8 +120,12 @@ async def help(ctx, *message):
             await ctx.reply(line)
 
 
+
 @bot.command()
 async def reg(ctx, *message):
+    pass
+
+async def reg1vs1(ctx, *message):
     global STATUS
     STATUS = read_status()
 
@@ -454,7 +458,17 @@ async def show_status(ctx):
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def start_reg(ctx):
+async def start_reg(ctx, message):
+    if message.strip() == "1vs1":
+        with open("data/mode.txt", "w") as f:
+            f.write("1vs1")
+    elif message.strip() == "2vs2" :
+        with open("data/mode.txt", "w") as f:
+            f.write("2vs2")
+    else:
+        await ctx.reply(f"Unknown mode: {message}")
+        return
+    
     global STATUS
     STATUS = "REGISTR"
     with open("data/status.txt", "w") as f:
@@ -462,8 +476,14 @@ async def start_reg(ctx):
     with open(f"data/current_tournament.json", "w") as f:
         data = {"participants" : [], "classes" : {}}
         json.dump(data, f)
-    await ctx.send("@everyone registration starts now.\nType /reg and write names of 3 classes you want to play.\n\
+    
+    mode = read_mode()
+    if mode == "1vs1":
+        await ctx.send("@everyone registration for the 1vs1 tournament starts now.\nType /reg and write names of 3 classes you want to play.\n\
 Example: /reg Taterazay Yarida Yumiyacha")
+    elif mode == "2vs2":
+        await ctx.send("@everyone registration for the 2vs2 tournament starts now.\nType /reg and write tag of your partner and 4 classes you want to play.\n\
+Example: /reg @myfriend Taterazay Yarida Yumiyacha Kibadda")
 
 
 @commands.has_permissions(administrator=True)
