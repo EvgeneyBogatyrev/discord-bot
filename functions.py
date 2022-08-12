@@ -138,10 +138,10 @@ def format_to_allowed(line):
 
     updated_line = ""
     for symbol in line:
-        if symbol in Constants.letters_match.keys():
-            updated_line += Constants.letters_match[symbol]
+        if symbol in Constants.LETTERS_MATCH.keys():
+            updated_line += Constants.LETTERS_MATCH[symbol]
             continue
-        if symbol not in Constants.allowed_letters:
+        if symbol not in Constants.ALLOWED_LETTERS:
             continue
         updated_line += symbol
     return updated_line
