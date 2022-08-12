@@ -48,9 +48,24 @@ async def confirm_game(ctx, player, opponent, your_score, opponent_score):
     else:
         diff2 = str(diff2)
 
-    await ctx.send(f"{player} VS {opponent}\nResult: {your_score}:{opponent_score}\n\
-        \nRating changes:\n{player} : {get_rating(player, mention=True)} ({diff1})\n{opponent} : {get_rating(opponent, mention=True)} ({diff2})")
-
+    mode = read_mode()
+    if mode == "1vs1":
+        await ctx.send(f"{player} VS {opponent}\nResult: {your_score}:{opponent_score}\n\
+    \nRating changes:\n{player} : {get_rating(player, mention=True)} ({diff1})\n{opponent} : {get_rating(opponent, mention=True)} ({diff2})")
+    else:
+        line = f"{player} VS {opponent}\nResult: {your_score}:{opponent_score}\nRating changes:\n"
+        words1 = list(player.split(" "))
+        for word in words1:
+            if "<" not in word:
+                continue
+            line += f"{word} : {get_rating(word, mention=True)} ({diff1})\n"
+        words2 = list(opponent.split(" "))
+        for word in words2:
+            if "<" not in word:
+                continue
+            line += f"{word} : {get_rating(word, mention=True)} ({diff2})\n"
+        await ctx.send(line)
+        
     if len(unresolved) == 0:
         await start_next_round(ctx)
 
@@ -79,6 +94,7 @@ async def end_current_tournament(ctx):
 async def start_next_round(ctx, increment=True, no_sort=False):
     with open("data/round_n.txt", "r") as f:
         n = f.readline()
+    n = int(n)
 
     with open("data/max_rounds.txt", "r") as f:
         max_num = f.readline()
@@ -161,7 +177,7 @@ async def start_next_round(ctx, increment=True, no_sort=False):
         print("Rematching...")
 
 
-    if max_num == n:
+    if int(max_num) <= int(n):
         await end_current_tournament(ctx)
         return
 
@@ -193,9 +209,13 @@ async def start_next_round(ctx, increment=True, no_sort=False):
         with open("data/played_pairs.json", "w") as f:
             json.dump(played_pairs, f)
 
-        line += f"{participants[2 * i]}\n1) {part_data['classes'][participants[2 * i]][0]}\n2) {part_data['classes'][participants[2 * i]][1]}\n3) {part_data['classes'][participants[2 * i]][2]}\n"
+        line += f"{participants[2 * i]}\n"
+        for j in range(len(part_data['classes'][participants[2 * i]])):
+            line += f"{j + 1}) {part_data['classes'][participants[2 * i]][j]}\n"
         line += "\nVS\n\n"
-        line += f"{participants[2 * i + 1]}\n1) {part_data['classes'][participants[2 * i + 1]][0]}\n2) {part_data['classes'][participants[2 * i + 1]][1]}\n3) {part_data['classes'][participants[2 * i + 1]][2]}\n"
+        line += f"{participants[2 * i + 1]}\n"
+        for j in range(len(part_data['classes'][participants[2 * i + 1]])):
+            line += f"{j + 1}) {part_data['classes'][participants[2 * i + 1]][j]}\n"
         line += "\n\n\n"
 
     if len(participants) % 2 == 1:

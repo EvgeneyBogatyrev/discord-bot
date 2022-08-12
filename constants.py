@@ -90,9 +90,12 @@ class Constants:
 
     HELP_COMMAND = {
         "help" : "Show all bot commands.",
-        "reg" : "Register for the tournament.\n\
+        "reg1vs1" : "Register for the tournament.\n\
 Type: ```/reg class-name1 class-name2 class-name3``` where \
 class-name1, class-name2, and class-name3 are classes you want to play.",
+        "reg2vs2" : "Register for the tournament.\n\
+Type: ```/reg @friend-tag class-name1 class-name2 ...``` where \
+class-name1, class-name2, ... are classes you want to play.",
         "result" : "Send the result of your game.\n\
 Type: ```/result your-wins:opponent's-wins```",
         "confirm" : "Confirm the results that your last opponent sent.",

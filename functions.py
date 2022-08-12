@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import codecs
 
 from constants import Constants
@@ -33,8 +34,22 @@ def adjust_rating(user1, user2, win):
     if not win and diff2 == 0:
         diff2 = 1
 
-    update_rating(user1, rating1 + diff1, mention=True)
-    update_rating(user2, rating2 + diff2, mention=True)
+    mode = read_mode()
+    if mode == "1vs1":
+        update_rating(user1, rating1 + diff1, mention=True)
+        update_rating(user2, rating2 + diff2, mention=True)
+    else:
+        words = list(user1.split(" "))
+        for word in words:
+            if not "<" in word:
+                continue
+            update_rating(word, get_rating(word, mention=True) + diff1, mention=True)
+
+        words = list(user2.split(" "))
+        for word in words:
+            if not "<" in word:
+                continue
+            update_rating(word, get_rating(word, mention=True) + diff2, mention=True)
 
     return diff1, diff2
 
@@ -120,6 +135,15 @@ def create_missing_data():
         with open("data/metagame.json", "w") as f:
             json.dump(meta_data, f)
 
+    if not os.path.exists("data/metagame2vs2.json"):
+        meta_data = {}
+        with open("data/patapons.txt", "r") as f:
+            lines = f.readlines()
+        for line in lines:
+            meta_data[line[:-1]] = 0
+        with open("data/metagame2vs2.json", "w") as f:
+            json.dump(meta_data, f)
+
     if not os.path.exists("data/await_confirmation.json"):
         with open("data/await_confirmation.json", "w") as f:
             json.dump([], f)
@@ -147,7 +171,7 @@ def format_to_allowed(line):
     return updated_line
 
 
-def get_rating(name, mention=False):
+def get_rating(name, mention=False, rec=False):
     """
     Get rating of the player.
 
@@ -156,6 +180,18 @@ def get_rating(name, mention=False):
 
     Returns: True or False 
     """
+    mode = read_mode()
+    if mention and mode != "1vs1" and not rec:
+        words = list(name.split(" "))
+        summ = 0
+        count = 0
+        for word in words:
+            if "<" not in word:
+                continue
+            summ += get_rating(word, mention=True, rec=True)
+            count += 1
+        assert count > 0, "Count is zero!"
+        return round(summ / count)
 
     if not mention:
         with codecs.open("data/rating.csv", "r", 'utf-8') as f:
@@ -238,3 +274,21 @@ def update_rating(name, rating, mention=False):
 
     with open("data/rating.csv", "w") as f:
         f.write(inner_csv)
+
+
+def get_random_patapons(number):
+
+    if number == 0:
+        return []
+    if number > 28:
+        number = 28
+
+    with open("data/patapons.txt", "r") as f:
+        csv = f.readlines()
+
+    patapons = list(csv)
+    for i in range(len(patapons)):
+        patapons[i] = patapons[i][:-1]
+
+    random.shuffle(patapons)
+    return patapons[:number]

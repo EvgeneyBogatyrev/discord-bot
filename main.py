@@ -1,4 +1,5 @@
 from discord.ext import commands
+import discord
 import json
 import codecs
 import math
@@ -9,6 +10,10 @@ from constants import Constants
 from functions import *
 from async_functions import *
 
+intents = discord.Intents.default()
+intents.members = True
+
+client = discord.Client(intents=intents)
 
 bot = commands.Bot(command_prefix='/')      # bot react on messages that start with '/'
 bot.remove_command("help")                  # inmplement custom /help command
@@ -30,35 +35,58 @@ async def drop(ctx):
     with open("data/status.txt", "r") as f:
         STATUS = f.readline()
 
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+
     if STATUS == "NONE":
         await ctx.reply("There is no tournament right now.")
         return
 
     elif STATUS == "REGISTR":
-        with open("data/current_tournament.json", "r") as f:
-            data = json.load(f)
-        data["participants"].remove(ctx.author.mention)
-        classes = data["classes"][ctx.author.mention]
-        del data["classes"][ctx.author.mention]
+
+        player_id = None
+        for i in range(len(data["participants"])):
+            if ctx.author.mention in data["participants"][i]:
+                player_id = data["participants"][i]
+                break
+        if player_id is None:
+            await ctx.reply("You are not registred")
+            return
+        
+        data["participants"].remove(player_id)
+        classes = data["classes"][player_id]
+        del data["classes"][player_id]
 
         with open("data/current_tournament.json", "w") as f:
             json.dump(data, f)
 
-        with open("data/metagame.json", "r") as f:
+        meta_filename = "data/metagame.json"
+        if read_mode() == "2vs2":
+            meta_filename = "data/metagame2vs2.json"
+        with open(meta_filename, "r") as f:
             meta_data = json.load(f)
         for cl in classes:
             meta_data[cl] -= 1
-        with open("data/metagame.json", "w") as f:
+        with open(meta_filename, "w") as f:
             json.dump(meta_data, f)
 
-        await ctx.reply(f"{ctx.author.mention} canceled their registration.")
+        await ctx.reply(f"{player_id} canceled their registration.")
         return
 
     else:
+        player_id = None
+        for i in range(len(data["participants"])):
+            if ctx.author.mention in data["participants"][i]:
+                player_id = data["participants"][i]
+                break
+        if player_id is None:
+            await ctx.reply("You are not registred")
+            return
+
         with open("data/current_tournament.json", "r") as f:
             data = json.load(f)
-        data["participants"].remove(ctx.author.mention)
-        del data["classes"][ctx.author.mention]
+        data["participants"].remove(player_id)
+        del data["classes"][player_id]
 
         with open("data/current_tournament.json", "w") as f:
             json.dump(data, f)
@@ -67,7 +95,7 @@ async def drop(ctx):
             points_data = json.load(f)
 
         for i in range(len(points_data["participants"])):
-            if points_data["participants"][i] == ctx.author.mention:
+            if points_data["participants"][i] == player_id:
                 del points_data["points"][i]
                 del points_data["participants"][i]
                 break
@@ -77,9 +105,9 @@ async def drop(ctx):
 
         opponent = None
         for pair in data:
-            if ctx.author.mention in pair:
+            if player_id in pair:
                 opponent = pair[0]
-                if opponent == ctx.author.mention:
+                if opponent == player_id:
                     opponent = pair[1]
                 data.remove(pair)
                 break
@@ -90,9 +118,9 @@ async def drop(ctx):
         with open("data/points.json", "w") as f:
             json.dump(points_data, f)
 
-        await ctx.send(f"{ctx.author.mention} dropped from the tournament. See you next time!")
+        await ctx.send(f"{player_id} dropped from the tournament. See you next time!")
         if opponent is not None:
-            await confirm_game(ctx, ctx.author.mention, opponent, 0, 1)
+            await confirm_game(ctx, player_id, opponent, 0, 1)
             
 
 @bot.command()
@@ -109,6 +137,12 @@ async def help(ctx, *message):
                     await ctx.reply("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
                 else:
                     await ctx.reply("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
+            elif elem == "reg":
+                mode = read_mode()
+                if mode == "1vs1":
+                    await ctx.reply("```/reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
+                else:
+                    await ctx.reply("```/reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
             elif elem in Constants.HELP_COMMAND:
                 await ctx.reply("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
             else:
@@ -210,21 +244,62 @@ async def reg2vs2(ctx, message):
 
     with open("data/current_tournament.json", 'r') as f:
         tour_data = json.load(f)
-    if ctx.author.mention in tour_data["participants"]:
-        await ctx.reply(f'You have already registred for this tournament.\nDrop and register again if you want to change classes.')
-        return
+
+    for participant in tour_data["participants"]:
+        if ctx.author.mention in participant:
+            await ctx.reply(f'You have already registred for this tournament.\nDrop and register again if you want to change classes.')
+            await ctx.message.delete(delay=5)
+            return
+
+    with open("data/pull_size.txt", "r") as f:
+        pull_size = int(f.readline())
 
     data = list(message)
-    if len(classes) != 5:
-        await ctx.send(f'{ctx.author.mention}, format your input the following way:\n/reg friend-tag class1 class2 class3 class4')
+    if len(data) != pull_size + 1:
+        line = f'{ctx.author.mention}, format your input the following way:\n/reg friend-tag'
+        for j in range(pull_size):
+            line += f" class{j + 1}"
+        line += "\n"
+        await ctx.send(line)
         await ctx.message.delete(delay=5)
         return
     
-    name = classes[0].strip()
-    if name[0] != "<"
+    bad = False
+    partner = data[0].strip()
+    if partner.startswith("<@") and partner.endswith(">"):
+        partner = partner[2:-1]
+        if partner.isdigit():
+            partner = int(partner)
+            partner = await bot.fetch_user(partner)
+            if partner is None:
+                bad = True
+            elif partner == ctx.author:
+                await ctx.reply("You cannot play with youtself. Go find some friends.")
+                await ctx.message.delete(delay=5)
+                return
+            elif partner.name in ["iPataHell Head-On Bot", "Dyno", "ProBot"]:
+                await ctx.reply("You cannot play with bot. Go find some human friends.")
+                await ctx.message.delete(delay=5)
+                return
+            else:
+                for participant in tour_data["participants"]:
+                    if partner.mention in participant:
+                        await ctx.reply(f'{partner.name} is already in the tournament with someone else.')
+                        await ctx.message.delete(delay=5)
+                        return
+        else:
+            bad = True
+    else:
+        bad = True
 
-    for i in range(len(classes)):
-        classes[i] = classes[i].strip()
+    if bad:
+        await ctx.reply("First word should be the tag of your partner. They should be PataHell discord member.")
+        await ctx.message.delete(delay=5)
+        return
+
+    classes = []
+    for i in range(1, len(data)):
+        classes.append(data[i].strip())
 
     bad_classes = []
     for i, patapon in enumerate(classes[:]):
@@ -247,8 +322,8 @@ async def reg2vs2(ctx, message):
         classes[i] = classes[i].strip().lower().capitalize()
 
     classes = list(set(classes))
-    if len(classes) < 3:
-        line = f'{ctx.author.mention}, please, select 3 different classes'
+    if len(classes) < pull_size:
+        line = f'{ctx.author.mention}, please, select {pull_size} different classes'
         await ctx.send(line)
         await ctx.message.delete(delay=5)
         return
@@ -257,21 +332,25 @@ async def reg2vs2(ctx, message):
     if rating == -1:
         rating = Constants.START_RATING
         update_rating(ctx.author, rating)
+    partner_rating = get_rating(partner)
+    if partner_rating == -1:
+        partner_rating = Constants.START_RATING
+        update_rating(partner, rating)
 
-    tour_data["participants"].append(ctx.author.mention)
-    tour_data["classes"][ctx.author.mention] = classes
+    tour_data["participants"].append(f"{ctx.author.mention} and {partner.mention}")
+    tour_data["classes"][f"{ctx.author.mention} and {partner.mention}"] = classes
 
     with open("data/current_tournament.json", "w") as f:
         json.dump(tour_data, f)
 
     await ctx.message.delete(delay=5)
-    await ctx.send(f"{ctx.author.mention} (Rating: {rating}) has registred successfully.")
+    await ctx.send(f"{ctx.author.mention} (Rating: {rating}) and {partner.mention} (Rating: {partner_rating}) has registred successfully.")
 
-    with open("data/metagame.json", "r") as f:
+    with open("data/metagame2vs2.json", "r") as f:
         meta_data = json.load(f)
     for cl in classes:
         meta_data[cl] += 1
-    with open("data/metagame.json", "w") as f:
+    with open("data/metagame2vs2.json", "w") as f:
         json.dump(meta_data, f)
     
 
@@ -311,8 +390,18 @@ async def restart_round(ctx):
 async def drop_player(ctx, message):
     with open("data/current_tournament.json", "r") as f:
         data = json.load(f)
-    data["participants"].remove(message)
-    del data["classes"][message]
+
+    player_id = None
+    for i in range(len(data["participants"])):
+        if message in data["participants"][i]:
+            player_id = data["participants"][i]
+            break
+    if player_id is None:
+        await ctx.reply("This player is not registred.")
+        return
+
+    data["participants"].remove(player_id)
+    del data["classes"][player_id]
 
     with open("data/current_tournament.json", "w") as f:
         json.dump(data, f)
@@ -321,7 +410,7 @@ async def drop_player(ctx, message):
         points_data = json.load(f)
 
     for i in range(len(points_data["participants"])):
-        if points_data["participants"][i] == message:
+        if points_data["participants"][i] == player_id:
             del points_data["points"][i]
             del points_data["participants"][i]
             break
@@ -331,9 +420,9 @@ async def drop_player(ctx, message):
 
     opponent = None
     for pair in data:
-        if message in pair:
+        if player_id in pair:
             opponent = pair[0]
-            if opponent == message:
+            if opponent == player_id:
                 opponent = pair[1]
             data.remove(pair)
             break
@@ -344,9 +433,13 @@ async def drop_player(ctx, message):
     with open("data/points.json", "w") as f:
         json.dump(points_data, f)
 
-    await ctx.send(f"{message} was kicked from the tournament. See you next time!")
+    prep = "was"
+    if read_mode() != "1vs1":
+        prep = "were"
+
+    await ctx.send(f"{player_id} {prep} kicked from the tournament. See you next time!")
     if opponent is not None:
-        await confirm_game(ctx, message, opponent, 0, 1)
+        await confirm_game(ctx, player_id, opponent, 0, 1)
 
 
 @bot.command() 
@@ -362,12 +455,24 @@ async def result(ctx, message):
     if STATUS != "TOURN":
         await ctx.reply("The tournament has not started yet.")
         return
+
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+
+    player_id = None
+    for i in range(len(data["participants"])):
+        if ctx.author.mention in data["participants"][i]:
+            player_id = data["participants"][i]
+            break
+    if player_id is None:
+        await ctx.reply("You are not registred")
+        return
         
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
 
     for elem in await_conf:
-        if ctx.author.mention in elem["players"]:
+        if player_id in elem["players"]:
             await ctx.reply("!!! Your game's result has already been saved. Please, confirm or reject it. !!!")
             return
 
@@ -375,7 +480,7 @@ async def result(ctx, message):
         unresolved = json.load(f)
 
     for pair in unresolved:
-        if ctx.author.mention in pair:
+        if player_id in pair:
             break
     else:
         await ctx.reply(f"{ctx.author.mention}, you have no active games.")
@@ -398,18 +503,18 @@ async def result(ctx, message):
     opponent_score = int(res[1])
     
     for pair in unresolved:
-        if ctx.author.mention in pair:
+        if player_id in pair:
             opponent = pair[0]
-            if opponent == ctx.author.mention:
+            if opponent == player_id:
                 opponent = pair[1]
             break
 
     await ctx.send(f"{opponent}, confirm that you won {opponent_score} and lost {your_score} games against \
-{ctx.author.mention}.\nTo confirm type /confirm or just wait 2 minutes.\nTo reject type /reject.", delete_after=Constants.CONFIRM_SLEEP)
+{player_id}.\nTo confirm type /confirm or just wait 2 minutes.\nTo reject type /reject.", delete_after=Constants.CONFIRM_SLEEP)
 
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
-    await_conf.append({"players" : [ctx.author.mention, opponent], 
+    await_conf.append({"players" : [player_id, opponent], 
         "score" : [your_score, opponent_score]})
     with open("data/await_confirmation.json", "w") as f:
         json.dump(await_conf, f)
@@ -422,10 +527,22 @@ async def result(ctx, message):
 async def confirm(ctx, timeout=False):
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
+
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+
+    player_id = None
+    for i in range(len(data["participants"])):
+        if ctx.author.mention in data["participants"][i]:
+            player_id = data["participants"][i]
+            break
+    if player_id is None:
+        await ctx.reply("You are not registred")
+        return
     
     if timeout:
         speciment = await_conf[0]
-        if ctx.author.mention in speciment["players"]:
+        if ctx.author.mention in speciment["players"][0] or ctx.author.mention in speciment["players"][1]:
             score = speciment["score"]
             await_conf.remove(speciment)
             with open("data/await_confirmation.json", "w") as f:
@@ -434,7 +551,7 @@ async def confirm(ctx, timeout=False):
             return
     else:
         for speciment in await_conf:
-            if ctx.author.mention in speciment["players"] and ctx.author.mention == speciment["players"][1]:
+            if player_id in speciment["players"] and player_id == speciment["players"][1]:
                 score = speciment["score"]
                 await_conf.remove(speciment)
                 with open("data/await_confirmation.json", "w") as f:
@@ -447,10 +564,22 @@ async def confirm(ctx, timeout=False):
 
 @bot.command()
 async def reject(ctx):
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+
+    player_id = None
+    for i in range(len(data["participants"])):
+        if ctx.author.mention in data["participants"][i]:
+            player_id = data["participants"][i]
+            break
+    if player_id is None:
+        await ctx.reply("You are not registred")
+        return
+
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
     for speciment in await_conf:
-        if ctx.author.mention in speciment["players"]:
+        if player_id in speciment["players"]:
             await_conf.remove(speciment)
             with open("data/await_confirmation.json", "w") as f:
                 json.dump(await_conf, f)
@@ -465,11 +594,14 @@ async def reject(ctx):
 async def metagame(ctx):
     with open("data/status.txt", "r") as f:
         STATUS = f.readline()
-    if STATUS == "REGISTR":
-        await ctx.reply("This command in blocked during the registration to prevent cheating.")
-        return
     with open("data/metagame.json", "r") as f:
         meta_data = json.load(f)
+    if os.path.isfile("data/metagame2vs2.json"):
+        with open("data/metagame2vs2.json", "r") as f:
+            meta_data_2 = json.load(f)
+        for key in meta_data.keys():
+            meta_data[key] += meta_data_2[key]
+
     sort_data = {k: v for k, v in sorted(meta_data.items(), key=lambda item: item[1], reverse=True)}
     summ = 0
     for key in meta_data.keys():
@@ -494,7 +626,10 @@ async def end_reg(ctx):
         data = json.load(f)
     line = "The registration has finished. Here are the participants:\n\n"
     for i, part in enumerate(data["classes"]):
-        line += f"{i + 1}) {part}\n1. {data['classes'][part][0]}\n2. {data['classes'][part][1]}\n3. {data['classes'][part][2]}\n\n"
+        line += f"{i + 1}) {part}\n"
+        for j in range(len(data['classes'][part])):
+            line += f"{j + 1}. {data['classes'][part][j]}\n"
+        line += "\n"
     await ctx.send(line)
 
 
@@ -530,7 +665,11 @@ async def show_status(ctx):
         data = json.load(f)
     line = "TOURNAMENT:\n\n"
     for i, part in enumerate(data["classes"]):
-        line += f"{i + 1}) {part}\n1. {data['classes'][part][0]}\n2. {data['classes'][part][1]}\n3. {data['classes'][part][2]}\n\n"
+        line += f"{i + 1}) {part}\n"
+        for j in range(len(data["classes"][part])):
+            line += f"{j + 1}. {data['classes'][part][j]}\n"
+        line += "\n"
+    line += "\n"
     await ctx.reply(line)
 
 
@@ -540,9 +679,12 @@ async def start_reg(ctx, message):
     if message.strip() == "1vs1":
         with open("data/mode.txt", "w") as f:
             f.write("1vs1")
-    elif message.strip() == "2vs2" :
+    elif message.strip()[:-2] == "2vs2" :
         with open("data/mode.txt", "w") as f:
             f.write("2vs2")
+        pull_size = int(message.strip()[-1])
+        with open("data/pull_size.txt", "w") as f:
+            f.write(str(pull_size))
     else:
         await ctx.reply(f"Unknown mode: {message}")
         return
@@ -551,17 +693,27 @@ async def start_reg(ctx, message):
     STATUS = "REGISTR"
     with open("data/status.txt", "w") as f:
         f.write("REGISTR")
-    with open(f"data/current_tournament.json", "w") as f:
-        data = {"participants" : [], "classes" : {}}
-        json.dump(data, f)
     
     mode = read_mode()
     if mode == "1vs1":
+        with open(f"data/current_tournament.json", "w") as f:
+            data = {"participants" : [], "classes" : {}}
+            json.dump(data, f)
         await ctx.send("@everyone registration for the 1vs1 tournament starts now.\nType /reg and write names of 3 classes you want to play.\n\
 Example: /reg Taterazay Yarida Yumiyacha")
     elif mode == "2vs2":
-        await ctx.send("@everyone registration for the 2vs2 tournament starts now.\nType /reg and write tag of your partner and 4 classes you want to play.\n\
-Example: /reg @myfriend Taterazay Yarida Yumiyacha Kibadda")
+        with open("data/pull_size.txt", "r") as f:
+            pull_size = int(f.readline())
+        with open(f"data/current_tournament.json", "w") as f:
+            data = {"participants" : [], "classes" : {}}
+            json.dump(data, f)
+        patapons = get_random_patapons(pull_size)
+        line = f"@everyone registration for the 2vs2 tournament starts now.\nType /reg and write tag of your partner and {pull_size} classes you want to play.\n"
+        line += "Example: /reg @myfriend"
+        for i in range(pull_size):
+            line += " " + patapons[i]
+        line += "."
+        await ctx.send(line)
 
 
 @commands.has_permissions(administrator=True)
@@ -596,6 +748,7 @@ async def start(ctx):
     await start_next_round(ctx, no_sort=True)
 
 
+create_missing_data()
 read_status()
 with open("data/token.txt", "r") as f:
     token = f.readline()
