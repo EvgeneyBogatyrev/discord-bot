@@ -355,6 +355,16 @@ async def reg2vs2(ctx, message):
     
 
 @bot.command()
+async def nickname(ctx, message):
+    tag = ctx.author.mention
+    with open("data/patapon_names.json", "r") as f:
+        data = json.load(f)
+    data[tag] = str(message)
+    with open("data/patapon_names.json", "w") as f:
+        json.dump(data, f)
+    await ctx.reply("Your nickname has been updated!")
+
+@bot.command()
 async def leaderboard(ctx):
     with codecs.open("data/rating.csv", "r", 'utf-8') as f:
         lines = f.readlines()
@@ -363,8 +373,17 @@ async def leaderboard(ctx):
     longest_rating = 6
     for line in lines:
         words = list(line[:-1].split(","))
-        data.append((words[1], int(words[2])))
-        if len(words[1]) > longest_name:
+        tag = words[0]
+        name = words[1]
+        rating = words[2]
+        user = await bot.fetch_user(int(tag[2:-1]))
+        name = user.name
+        with open("data/patapon_names.json", "r") as f:
+            patapon_names = json.load(f)
+        if tag in patapon_names.keys():
+            name += " (_" + patapon_names[tag] + "_)"
+        data.append((name, int(words[2])))
+        if len(name) > longest_name:
             longest_name = len(words[0])
         if len(words[2]) > longest_rating:
             longest_rating = len(words[1])
@@ -712,7 +731,7 @@ Example: /reg Taterazay Yarida Yumiyacha")
         line += "Example: /reg @myfriend"
         for i in range(pull_size):
             line += " " + patapons[i]
-        line += "."
+        line += ""
         await ctx.send(line)
 
 

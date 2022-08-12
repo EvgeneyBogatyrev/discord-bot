@@ -148,6 +148,10 @@ def create_missing_data():
         with open("data/await_confirmation.json", "w") as f:
             json.dump([], f)
 
+    if not os.path.exists("data/patapon_names.json"):
+        with open("data/patapon_names.json", "w") as f:
+            json.dump({}, f)
+
     if not os.path.exists("data/played_pairs.json"):
         with open("data/played_pairs.json", "w") as f:
             json.dump([], f)

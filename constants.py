@@ -80,6 +80,7 @@ class Constants:
 /drop                           Drop from the tournament\n\
 /leaderboard                    Show the leaderboard\n\
 /metagame                       Show classes popularity\n\
+/nickname                       Set your Patapon 3 nickname\n\
 /start_reg (admin only)         Start registration for the new tournament\n\
 /end_reg (admin only)           End registration for current tournament\n\
 /start (admin only)             Begin the tournament\n\
@@ -118,5 +119,6 @@ Only for admins.",
         "restart_round" :  "Restart current round. The leaderboard is not affected.\n\
 Only for admins.",
         "drop_player" :  "Use: ```/drop_player player_tag``` to drop the player from the tournament.\n\
-Only for admins."
+Only for admins.",
+        "nickname" : "Use: ```/nickname your-nickname``` to set your Patapon3 nickname."
     }
