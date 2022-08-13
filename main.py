@@ -29,6 +29,13 @@ EDITING_PAIRS = False                       # mutex to prevent double reading/wr
 
 
 @bot.command()
+async def buenos(ctx):
+    with open('buenos.gif', 'rb') as f:
+        picture = discord.File(f)
+        await ctx.send(file=picture)
+
+
+@bot.command()
 async def drop(ctx):
     global STATUS
 
