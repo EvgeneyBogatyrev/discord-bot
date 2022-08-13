@@ -376,34 +376,36 @@ async def nickname(ctx, message):
 async def leaderboard(ctx):
     with codecs.open("data/rating.csv", "r", 'utf-8') as f:
         lines = f.readlines()
+
+    with open("data/patapon_names.json", "r") as f:
+        nicknames = json.load(f)
+
+    em = discord.Embed(
+        title = f'{ctx.guild.name} Leaderboard'
+    )
+  
     data = []
-    longest_name = 4
-    longest_rating = 6
     for line in lines:
         words = list(line[:-1].split(","))
         tag = words[0]
         name = words[1]
-        rating = words[2]
+        rating = int(words[2])
         user = await bot.fetch_user(int(tag[2:-1]))
-        name = user.name
-        with open("data/patapon_names.json", "r") as f:
-            patapon_names = json.load(f)
-        if tag in patapon_names.keys():
-            name += " (_" + patapon_names[tag] + "_)"
-        data.append((name, int(words[2])))
-        if len(name) > longest_name:
-            longest_name = len(words[0])
-        if len(words[2]) > longest_rating:
-            longest_rating = len(words[1])
-    
-    def get_space(name, rating, base):
-        return (base - len(rating)) * " "
+        
+        data.append((user, rating))
 
     data = sorted(data, key=lambda x: x[1], reverse=True)
-    line = "RATING" + get_space("NAME", "RATING", 20 + longest_rating) + "NAME\n"
-    for elem in data:
-        line += str(elem[1]) + get_space(elem[0], str(elem[1]), 20 + longest_rating) + elem[0] + "\n"
-    await ctx.reply(line)
+
+    index = 1
+    for index, amt in enumerate(data):
+        name = amt[0].name
+        name = name.replace("_", "\_") 
+        if amt[0].mention in nicknames.keys():
+            name += f" _({nicknames[amt[0].mention]})_"
+        em.add_field(name = f'{index + 1}: {name}', value = f'{amt[1]}', inline=False)
+        index += 1
+        
+    await ctx.send(embed = em)
 
 
 @commands.has_permissions(administrator=True)
