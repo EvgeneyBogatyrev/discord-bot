@@ -1,11 +1,12 @@
 import json
 import math
 from random import randint
+import discord
 
 from functions import *
 
 
-async def confirm_game(ctx, player, opponent, your_score, opponent_score):  
+async def confirm_game(ctx, player, opponent, your_score, opponent_score, bot=None):  
 
     with open("data/pairs.json", "r") as f:
         unresolved = json.load(f)
@@ -67,7 +68,7 @@ async def confirm_game(ctx, player, opponent, your_score, opponent_score):
         await ctx.send(line)
         
     if len(unresolved) == 0:
-        await start_next_round(ctx)
+        await start_next_round(ctx, bot=bot)
 
 
 async def end_current_tournament(ctx):
@@ -91,7 +92,7 @@ async def end_current_tournament(ctx):
     await ctx.reply(line)
 
 
-async def start_next_round(ctx, increment=True, no_sort=False):
+async def start_next_round(ctx, increment=True, no_sort=False, bot=None):
     with open("data/round_n.txt", "r") as f:
         n = f.readline()
     n = int(n)
@@ -220,14 +221,54 @@ async def start_next_round(ctx, increment=True, no_sort=False):
 
     if len(participants) % 2 == 1:
         line += f"{participants[-1]}, you skip this round (auto win)\n"
+        line += "\n\n\n"
+    
+    if bot is not None and n != 1:
+        _partic = [x for _, x in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+        _points = [x for x, _ in sorted(zip(part_points["points"], part_points["participants"]), reverse=True)]
+
+        with open("data/patapon_names.json", "r") as f:
+            nicknames = json.load(f)
+        
+        em = discord.Embed(
+            title = 'Current points:'
+        )
+        if read_mode() == "1vs1":
+            for index, tag in enumerate(_partic):
+                user = await bot.fetch_user(int(tag[2:-1]))
+                name = user.name
+                name = name.replace("_", "\_") 
+                if tag in nicknames.keys():
+                    name += f" _({nicknames[tag]})_"
+                em.add_field(name = f'{index + 1}: {name}', value = f'{_points[index]}', inline=False)
+        else:
+            for index, tag in enumerate(_partic):
+                words = list(tag.split(" "))
+                players = []
+                for word in words:
+                    if "<" not in word:
+                        continue
+                    user = await bot.fetch_user(int(word[2:-1]))
+                    name = user.name
+                    name = name.replace("_", "\_") 
+                    if word in nicknames.keys():
+                        name += f" _({nicknames[word]})_"
+                    players.append(name)
+                names = players[0]
+                for i in range(1, len(players)):
+                    names += " and " + players[i]
+                em.add_field(name = f'{index + 1}: {names}', value = f'{_points[index]}', inline=False)
+        await ctx.send(line, embed = em)
+    else:
+        await ctx.send(line)
+
+    if len(participants) % 2 == 1:
         for i in range(len(part_points["participants"])):
             if part_points["participants"][i] == participants[-1]:
                 part_points["points"][i] += Constants.POINTS_FOR_WIN
 
     with open("data/points.json", "w") as f:
         json.dump(part_points, f)
-
-    await ctx.send(line)
 
     with open("data/pairs.json", "w") as f:
         json.dump(unresolved, f)

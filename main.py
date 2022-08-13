@@ -127,7 +127,7 @@ async def drop(ctx):
 
         await ctx.send(f"{player_id} dropped from the tournament. See you next time!")
         if opponent is not None:
-            await confirm_game(ctx, player_id, opponent, 0, 1)
+            await confirm_game(ctx, player_id, opponent, 0, 1, bot)
             
 
 @bot.command()
@@ -284,7 +284,7 @@ async def reg2vs2(ctx, message):
                 await ctx.reply("You cannot play with youtself. Go find some friends.")
                 await ctx.message.delete(delay=5)
                 return
-            elif partner.name in ["iPataHell Head-On Bot", "Dyno", "ProBot"]:
+            elif partner.name in ["PataHell Head-On Bot", "Dyno", "ProBot"]:
                 await ctx.reply("You cannot play with bot. Go find some human friends.")
                 await ctx.message.delete(delay=5)
                 return
@@ -342,7 +342,7 @@ async def reg2vs2(ctx, message):
     partner_rating = get_rating(partner)
     if partner_rating == -1:
         partner_rating = Constants.START_RATING
-        update_rating(partner, rating)
+        update_rating(partner, partner_rating)
 
     tour_data["participants"].append(f"{ctx.author.mention} and {partner.mention}")
     tour_data["classes"][f"{ctx.author.mention} and {partner.mention}"] = classes
@@ -468,7 +468,7 @@ async def drop_player(ctx, message):
 
     await ctx.send(f"{player_id} {prep} kicked from the tournament. See you next time!")
     if opponent is not None:
-        await confirm_game(ctx, player_id, opponent, 0, 1)
+        await confirm_game(ctx, player_id, opponent, 0, 1, bot)
 
 
 @bot.command() 
@@ -576,7 +576,7 @@ async def confirm(ctx, timeout=False):
             await_conf.remove(speciment)
             with open("data/await_confirmation.json", "w") as f:
                 json.dump(await_conf, f)
-            await confirm_game(ctx, speciment["players"][0], speciment["players"][1], score[0], score[1])
+            await confirm_game(ctx, speciment["players"][0], speciment["players"][1], score[0], score[1], bot)
             return
     else:
         for speciment in await_conf:
@@ -585,7 +585,7 @@ async def confirm(ctx, timeout=False):
                 await_conf.remove(speciment)
                 with open("data/await_confirmation.json", "w") as f:
                     json.dump(await_conf, f)
-                await confirm_game(ctx, speciment["players"][0], speciment["players"][1], score[0], score[1])
+                await confirm_game(ctx, speciment["players"][0], speciment["players"][1], score[0], score[1], bot)
                 break
         else:
             await ctx.reply("You have no pending games.")
@@ -846,7 +846,7 @@ async def start(ctx):
     with open("data/round_n.txt", "w") as f:
         f.write("0")
 
-    await start_next_round(ctx, no_sort=True)
+    await start_next_round(ctx, no_sort=True, bot=bot)
 
 
 create_missing_data()
