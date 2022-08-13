@@ -5,8 +5,13 @@ import codecs
 import math
 import asyncio
 from random import randint
-import seaborn as sns
-import matplotlib.pyplot as plt
+import matplotlib.pyplot
+
+COLOR = 'white'
+matplotlib.pyplot.rcParams['text.color'] = COLOR
+matplotlib.pyplot.rcParams['axes.labelcolor'] = COLOR
+matplotlib.pyplot.rcParams['xtick.color'] = COLOR
+matplotlib.pyplot.rcParams['ytick.color'] = COLOR
 
 from constants import Constants
 from functions import *
@@ -662,13 +667,11 @@ async def metagame(ctx):
         "percent" : percent 
     }
 
-    fig, ax = plt.subplots()
-
-    
+    fig, ax = matplotlib.pyplot.subplots()
+        
     fig.patch.set_visible(False)
     ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-    io = sns.barplot(data=data, x="rating", y="name", ax=ax, palette=color)
+    ax.barh(names[::-1], data["rating"][::-1], color=color[::-1])
     ax.bar_label(ax.containers[-1], fmt=' %d', label_type='edge', color='snow', fontsize=14)
 
     ax.spines['top'].set_visible(False)
@@ -676,15 +679,8 @@ async def metagame(ctx):
     ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
 
-    for i, bar in enumerate(io.patches):
-        io.annotate(names[i] + " - ",
-                    (0,
-                         bar.get_y() + bar.get_height()/2 + 0.07), ha='right', va='top',
-                    size=11, xytext=(0, 8),
-                    textcoords='offset points', color="snow")
-
-    plt.tight_layout()
-    plt.savefig('metagame.png', transparent=True)
+    matplotlib.pyplot.tight_layout()
+    matplotlib.pyplot.savefig('metagame.png', transparent=True)
 
     with open('metagame.png', 'rb') as f:
         picture = discord.File(f)
