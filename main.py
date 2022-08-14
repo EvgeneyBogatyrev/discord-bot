@@ -131,6 +131,80 @@ async def drop(ctx):
             
 
 @bot.command()
+async def pon(ctx, message=None):
+    
+    links = {
+        "Taterazay" : "https://static.wikia.nocookie.net/patapon/images/3/39/Taterazay.png",
+        "Tondenga" : "https://static.wikia.nocookie.net/patapon/images/0/07/Tondenga.png",
+        "Destrobo" : "https://static.wikia.nocookie.net/patapon/images/9/90/Destrobo.png",
+        "Guardira" : "https://static.wikia.nocookie.net/patapon/images/3/3d/Guardira.png",
+        "Myamsar" : "https://static.wikia.nocookie.net/patapon/images/3/3f/Myamsar.png",
+        "Bowmunk" : "https://static.wikia.nocookie.net/patapon/images/4/43/Bowmunk.png",
+        "Grenburr" : "https://static.wikia.nocookie.net/patapon/images/c/c8/Grenburr.png",
+        "Yarida" : "https://static.wikia.nocookie.net/patapon/images/a/a7/Yarida.png",
+        "Kibadda" : "https://static.wikia.nocookie.net/patapon/images/2/2f/Kibadda.png",
+        "Piekron" : "https://static.wikia.nocookie.net/patapon/images/2/21/Piekron.png",
+        "Cannassault" : "https://static.wikia.nocookie.net/patapon/images/8/83/Cannassault.png",
+        "Pyokorider" : "https://static.wikia.nocookie.net/patapon/images/0/0b/Pyokorider.png",
+        "Wooyari" : "https://static.wikia.nocookie.net/patapon/images/e/e3/Wooyari.png",
+        "Charibasa" : "https://static.wikia.nocookie.net/patapon/images/9/9a/Charibasa.png",
+        "Yumiyacha" : "https://static.wikia.nocookie.net/patapon/images/e/e0/Yumiyacha.png",
+        "Wondabarappa" : "https://static.wikia.nocookie.net/patapon/images/4/4c/Wondabarappa.png",
+        "Pingrek" : "https://static.wikia.nocookie.net/patapon/images/7/76/Pingrek.png",
+        "Alosson" : "https://static.wikia.nocookie.net/patapon/images/f/ff/Alosson.png",
+        "Oohoroc" : "https://static.wikia.nocookie.net/patapon/images/8/86/Oohoroc.png",
+        "Jamsch" : "https://static.wikia.nocookie.net/patapon/images/c/c1/Jamsch.png",
+        "Cannogabang" : "https://static.wikia.nocookie.net/patapon/images/e/e8/Cannogabang.png",
+        "Ragewolf" : "https://static.wikia.nocookie.net/patapon/images/7/7e/Image_1652.png",
+        "Naughtyfins" : "https://static.wikia.nocookie.net/patapon/images/6/6f/Image_1668.png",
+        "Sonarchy" : "https://static.wikia.nocookie.net/patapon/images/a/a7/Image_1684.png",
+        "Ravenous" : "https://static.wikia.nocookie.net/patapon/images/3/32/Image_1700.png",
+        "Buzzcrave" : "https://static.wikia.nocookie.net/patapon/images/8/87/Image_1713.png",
+        "Slogturtle" : "https://static.wikia.nocookie.net/patapon/images/0/0d/Image_1732.png",
+        "Covet-hiss" : "https://static.wikia.nocookie.net/patapon/images/5/5e/Image_1748.png"
+
+    }
+
+    if message is None:
+        number = 1
+    else:
+        try:
+            number = int(message)
+        except:
+            number = 1
+    
+    if number < 1:
+        number = 1
+    if number > 28:
+        number = 28
+
+    if number == 1:
+
+        chance = randint(1, 100)
+        if chance <= 5:
+            await ctx.reply(file=discord.File('./pon.mp4'))
+            return
+        elif chance <= 10:
+            e = discord.Embed()
+            e.set_image(url="https://raw.githubusercontent.com/WallSoGB/Patapon3Textures/master/ui/drums/pon.png")
+            await ctx.reply(embed=e)
+            return
+        
+        patapon = get_random_patapons(1)[0]
+    
+        e = discord.Embed()
+        e.set_image(url=links[patapon])
+        await ctx.reply(patapon, embed=e)
+    else:
+        patapons = get_random_patapons(number)
+        line = patapons[0]
+        for i in range(1, number):
+            line += "\n" + patapons[i]
+
+        await ctx.reply(line)
+
+
+@bot.command()
 async def help(ctx, *message):
     if len(message) == 0:
         await ctx.reply(Constants.HELP)
