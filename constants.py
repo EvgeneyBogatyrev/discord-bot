@@ -5,6 +5,12 @@ class Constants:
     POINTS_FOR_WIN = 10
     CONFIRM_SLEEP = 120
 
+    BOT_COMMANDS_ID_LOCAL = 1001104114522005534
+    BOT_COMMANDS_ID = 1009215461176647751
+    MEMES_ID = 1001220727892082748
+    MEMES_ID_LOCAL = 1009201950174224524
+    TOURN_STATUS = 1001220951939231744
+
     ALLOWED_LETTERS = " ()abcdefghijklmnopqrstuvwxyz1234567890ABCDEFJHIJKLMNOPQRSTUVWXYZ!#$%&?,."
     LETTERS_MATCH = {
         "с" : "s",
@@ -89,6 +95,12 @@ class Constants:
 /drop_player (admin only)       Kick player from the tournament\n\
 ```"
 
+    HELP_MEME = "```If you want to see the description of a particular command, type /help command.\n\n\
+/help                           Show this message\n\
+/pon                            Generate random Patapon\n\
+/kuwagattan_says                Generate Kuwagattan quote\n\
+```"
+
     HELP_COMMAND = {
         "help" : "Show all bot commands.",
         "reg1vs1" : "Register for the tournament.\n\
@@ -120,5 +132,7 @@ Only for admins.",
 Only for admins.",
         "drop_player" :  "Use: ```/drop_player player_tag``` to drop the player from the tournament.\n\
 Only for admins.",
-        "nickname" : "Use: ```/nickname your-nickname``` to set your Patapon3 nickname."
+        "nickname" : "Use: ```/nickname your-nickname``` to set your Patapon3 nickname.",
+        "pon" : f"`/pon` - generate random Patapon 3 class.\n`/pon X` - generate X random Patapon 3 classes.",
+        "kuwagattan_says" : f"Write `/kuwagattan_says any-text`."
     }

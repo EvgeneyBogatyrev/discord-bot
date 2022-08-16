@@ -7,6 +7,8 @@ import asyncio
 from random import randint
 import matplotlib.pyplot
 from PIL import Image, ImageFont, ImageDraw
+from discord.ext.commands import CommandNotFound
+
 
 
 COLOR = 'white'
@@ -34,6 +36,53 @@ STATUS = "NONE"                             # status of the tournament
                                             # TOURN - the tournament is on
 
 EDITING_PAIRS = False                       # mutex to prevent double reading/writing
+
+
+
+@bot.event  
+async def on_message(msg):
+
+    if msg.author.bot:
+        return
+
+    if msg.channel.id in [Constants.BOT_COMMANDS_ID, Constants.BOT_COMMANDS_ID_LOCAL]:
+        if not msg.content.startswith("/") and not msg.author.top_role.permissions.administrator:
+            await msg.delete()
+            await bot.get_channel(msg.channel.id).send("This channel is for bot commands only.", 
+                delete_after=30) 
+        elif msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says"):
+            await msg.delete()
+            await bot.get_channel(msg.channel.id).send(f"This channel is for tournaments only. You can send this command in {bot.get_channel(Constants.MEMES_ID).mention}.", 
+                delete_after=30)
+        else:
+            if msg.content.startswith("/help"):
+                await help_bot(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
+                return
+            await bot.process_commands(msg)
+    elif msg.channel.id in [Constants.MEMES_ID, Constants.MEMES_ID_LOCAL]:
+        if not msg.content.startswith("/"):
+            return 
+        if msg.content.startswith("/help"):
+            await help_meme(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
+            return
+        if not (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says")):
+            await msg.delete(delay=30)
+            await bot.get_channel(msg.channel.id).send(f"This channel is for MEMES only. You can send this command in {bot.get_channel(Constants.BOT_COMMANDS_ID).mention}.", 
+                delete_after=30)
+        else:
+            await bot.process_commands(msg)
+    elif msg.channel.id == Constants.TOURN_STATUS:
+        if not msg.content.startswith("/"):
+            return
+        await bot.process_commands(msg)
+
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, CommandNotFound):
+        await ctx.reply(f"Unknown command. Type `/help` to see the lost of commands.")
+        return
+    raise error
 
 
 
@@ -269,35 +318,68 @@ async def pon(ctx, message=None):
         await ctx.reply(line)
 
 
-@bot.command()
-async def help(ctx, *message):
+async def help_bot(ctx, message):
     if len(message) == 0:
-        await ctx.reply(Constants.HELP)
+        await ctx.send(Constants.HELP)
     else:
-        message = list(set(message))
         bad_commands = []
         for elem in message:
             if elem == "drop":
                 status = read_status()
                 if status == "REGISTR":
-                    await ctx.reply("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
+                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
                 else:
-                    await ctx.reply("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
+                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
             elif elem == "reg":
                 mode = read_mode()
                 if mode == "1vs1":
-                    await ctx.reply("```/reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
+                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
                 else:
-                    await ctx.reply("```/reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
+                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
+            elif elem in ["pon", "kuwagattan_says"]:
+                line = f"```/{elem}:```\n" + Constants.HELP_COMMAND[elem] + f"\nWorks in {bot.get_channel(Constants.MEMES_ID).mention}"
+                await ctx.send(line)
             elif elem in Constants.HELP_COMMAND:
-                await ctx.reply("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
+                await ctx.send("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
             else:
                 bad_commands.append(elem)
         if len(bad_commands) > 0:
             line = "Unknown commands:"
             for elem in bad_commands:
                 line += " " + elem
-            await ctx.reply(line)
+            await ctx.send(line)
+
+
+async def help_meme(ctx, message):
+    if len(message) == 0:
+        await ctx.send(Constants.HELP_MEME)
+    else:
+        bad_commands = []
+        for elem in message:
+            if elem == "drop":
+                status = read_status()
+                if status == "REGISTR":
+                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
+                else:
+                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
+            elif elem == "reg":
+                mode = read_mode()
+                if mode == "1vs1":
+                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
+                else:
+                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
+            elif elem in ["pon", "kuwagattan_says"]:
+                line = f"```/{elem}:```\n" + Constants.HELP_COMMAND[elem] + f"\nWorks in {bot.get_channel(Constants.MEMES_ID).mention}"
+                await ctx.send(line)
+            elif elem in Constants.HELP_COMMAND:
+                await ctx.send("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
+            else:
+                bad_commands.append(elem)
+        if len(bad_commands) > 0:
+            line = "Unknown commands:"
+            for elem in bad_commands:
+                line += " " + elem
+            await ctx.send(line)
 
 
 
