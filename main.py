@@ -158,11 +158,17 @@ async def kuwagattan_says(ctx, *message):
     line = " ".join(message)
     font_size = 240
     
+    def get_sym(sym):
+        if sym in ["йцукенгшщзфывапролджэхъюбьтимсчяЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ"]:
+            return "н"
+        else:
+            return "o"
+
     while font_size > 0:
         myFont = ImageFont.truetype('./Roboto-Bold.ttf', font_size)
-        (width, baseline), (offset_x, offset_y) = myFont.font.getsize("W")
+        (width, baseline), (offset_x, offset_y) = myFont.font.getsize(get_sym(line[0]))
         ascent, descent = myFont.getmetrics()
-        status, para = wrap_text(line, width=int(920 // width))
+        status, para = wrap_text(line, width=int(600 // width))
         if not status:
             font_size -= 2
             continue
@@ -173,7 +179,7 @@ async def kuwagattan_says(ctx, *message):
         for _line in para:
             w = image_editable.textlength(_line, font=myFont)
             text_height = myFont.getmask(_line).getbbox()[3] + descent
-            image_editable.text((86, current_h), _line, (0, 0, 0), font=myFont)
+            image_editable.text((80, current_h), _line, (0, 0, 0), font=myFont)
             current_h += pad + text_height
             if current_h > 320:
                 break
