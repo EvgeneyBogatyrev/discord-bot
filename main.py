@@ -6,6 +6,8 @@ import math
 import asyncio
 from random import randint
 import matplotlib.pyplot
+from PIL import Image, ImageFont, ImageDraw
+
 
 COLOR = 'white'
 matplotlib.pyplot.rcParams['text.color'] = COLOR
@@ -129,6 +131,63 @@ async def drop(ctx):
         if opponent is not None:
             await confirm_game(ctx, player_id, opponent, 0, 1, bot)
             
+
+@bot.command()
+async def kuwagattan_says(ctx, *message):
+    
+    def wrap_text(text, width):
+        lines = []
+        words = list(text.split(" "))
+        cur_line = ""
+        for word in words:
+            if len(word) >= width:
+                return False, []
+            if len(cur_line) + len(word) + 1 < width:
+                cur_line += word + " "
+            elif 0.6 * len(cur_line) < len(word):
+                return False, []
+            else:
+                if cur_line == "":
+                    return False, []
+                lines.append(cur_line[:-1])
+                cur_line = word + " "
+        lines.append(cur_line)
+        return True, lines
+
+
+    line = " ".join(message)
+    font_size = 240
+    
+    while font_size > 0:
+        myFont = ImageFont.truetype('./Roboto-Bold.ttf', font_size)
+        (width, baseline), (offset_x, offset_y) = myFont.font.getsize("W")
+        ascent, descent = myFont.getmetrics()
+        status, para = wrap_text(line, width=int(920 // width))
+        if not status:
+            font_size -= 2
+            continue
+        my_image = Image.open("./kuw.png")
+        image_editable = ImageDraw.Draw(my_image)
+        
+        current_h, pad = 130, 10
+        for _line in para:
+            w = image_editable.textlength(_line, font=myFont)
+            text_height = myFont.getmask(_line).getbbox()[3] + descent
+            image_editable.text((86, current_h), _line, (0, 0, 0), font=myFont)
+            current_h += pad + text_height
+            if current_h > 320:
+                break
+        else:
+            break
+        font_size -= 5
+
+    my_image.save("./kuw_moded.png")
+
+    with open('./kuw_moded.png', 'rb') as f:
+        picture = discord.File(f)
+        await ctx.reply(file=picture)
+
+
 
 @bot.command()
 async def pon(ctx, message=None):
