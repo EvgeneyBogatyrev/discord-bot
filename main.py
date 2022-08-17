@@ -81,9 +81,8 @@ async def on_ready():
 @bot.event  
 async def on_message(msg):
 
-    while "\"" in msg.content or "\'" in msg.content:
+    while "\"" in msg.content:
         cnt = msg.content.replace("\"", "")
-        cnt = cnt.replace("\'", "")
         msg.content = cnt
 
     print(f"processing {bot.get_channel(msg.channel.id).name}: {msg.content}...")
@@ -116,14 +115,21 @@ async def on_message(msg):
             await bot.process_commands(msg)
     elif msg.channel.id in [Constants.MEMES_ID, Constants.MEMES_ID_LOCAL]:
         if not msg.content.startswith("/"):
-            return 
+            return
+        
         if msg.content.startswith("/help"):
             await help_meme(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
             return
-        if not (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says")):
-            await msg.delete(delay=30)
-            await bot.get_channel(msg.channel.id).send(f"This channel is for MEMES only. You can send this command in {bot.get_channel(Constants.BOT_COMMANDS_ID).mention}.", 
-                delete_after=30)
+        
+        for cmd in Constants.HELP_COMMAND:
+            if msg.content.startswith("/" + cmd):
+                if not (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says")):
+                    await msg.delete(delay=30)
+                    await bot.get_channel(msg.channel.id).send(f"This channel is for MEMES only. You can send this command in {bot.get_channel(Constants.BOT_COMMANDS_ID).mention}.", 
+                        delete_after=30)
+                else:
+                    await bot.process_commands(msg)
+                break
         else:
             await bot.process_commands(msg)
     elif msg.channel.id == Constants.TOURN_STATUS:
@@ -268,17 +274,38 @@ async def kuwagattan_says(ctx, *message):
         else:
             return "o"
 
+    def warp(line, font, max_size=510):
+        lines = []
+        words = list(line.split(" "))
+        cur_line = ""
+        for word in words:
+            (width, baseline), (offset_x, offset_y) = font.font.getsize(word)
+            if width > max_size:
+                return False, []
+        
+            (width, baseline), (offset_x, offset_y) = font.font.getsize(cur_line + word)
+            if width > max_size:
+                #if 0.6 * len(cur_line) < len(word):
+                #    return False, []
+                lines.append(cur_line[:-1])
+                cur_line = word + " "
+            else:
+                cur_line += word + " "
+        lines.append(cur_line[:-1])
+        return True, lines
+
+
     while font_size > 0:
         myFont = ImageFont.truetype('./Roboto-Bold.ttf', font_size)
-        (width, baseline), (offset_x, offset_y) = myFont.font.getsize(get_sym(line[0]))
+        #(width, baseline), (offset_x, offset_y) = myFont.font.getsize(get_sym(line[0]))
         ascent, descent = myFont.getmetrics()
-        status, para = wrap_text(line, width=int(600 // width))
+        #status, para = wrap_text(line, width=int(600 // width))
+        status, para = warp(line, myFont)
         if not status:
             font_size -= 2
             continue
         my_image = Image.open("./kuw.png")
         image_editable = ImageDraw.Draw(my_image)
-        
         current_h, pad = 130, 10
         for _line in para:
             w = image_editable.textlength(_line, font=myFont)
@@ -1048,6 +1075,16 @@ async def show_status(ctx):
         line += "\n"
     line += "\n"
     await ctx.reply(line)
+
+
+@commands.has_permissions(administrator=True)
+@bot.command() 
+async def respond_to(ctx, *message):
+    channel_id = int(message[0])
+    message_id = int(message[1])
+
+    msg = await bot.get_channel(channel_id).fetch_message(message_id)
+    await bot.process_commands(msg)
 
 
 @commands.has_permissions(administrator=True)
