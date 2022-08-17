@@ -1084,6 +1084,11 @@ async def respond_to(ctx, *message):
     message_id = int(message[1])
 
     msg = await bot.get_channel(channel_id).fetch_message(message_id)
+
+    while "\"" in msg.content:
+        cnt = msg.content.replace("\"", "")
+        msg.content = cnt
+
     await bot.process_commands(msg)
 
 
