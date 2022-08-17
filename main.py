@@ -1,14 +1,14 @@
-from discord.ext import commands
 import discord
+from discord.ext import commands
+from discord.ext.commands import CommandNotFound
 import json
 import codecs
 import math
 import asyncio
 from random import randint
 import matplotlib.pyplot
+from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
-from discord.ext.commands import CommandNotFound
-
 
 
 COLOR = 'white'
@@ -37,15 +37,70 @@ STATUS = "NONE"                             # status of the tournament
 
 EDITING_PAIRS = False                       # mutex to prevent double reading/writing
 
+@bot.event
+async def on_ready():
+    
+    channels = [Constants.BOT_COMMANDS_ID, Constants.MEMES_ID]
 
+    if not os.path.exists("last_reply.json"):
+        last_reply = {}
+        for channel_id in channels:
+            last_reply[str(channel_id)] = -1
+        with open("last_reply.json", "w") as f:
+            json.dump(last_reply, f)
+    else:
+        with open("last_reply.json", "r") as f:
+            last_reply = json.load(f)
+
+    for channel_id in channels:
+        time_last = last_reply[str(channel_id)]
+        if time_last != -1:
+            time_last = datetime.strptime(time_last, '%d/%m/%y %H:%M:%S')
+        else:
+            time_last = None
+
+        messages = await bot.get_channel(channel_id).history(limit=Constants.MAX_MESSAGES).flatten()
+        for msg in messages:
+            if msg.id == Constants.RULES_MSG_ID:
+                continue
+
+            if time_last == None or msg.created_at > time_last:
+                if msg.author.bot:
+                    continue
+
+                if not msg.content.startswith("/") and channel_id == Constants.BOT_COMMANDS_ID:
+                    await msg.delete()
+                elif (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says")) and channel_id == Constants.BOT_COMMANDS_ID:
+                    await msg.delete()
+                else:
+                    if msg.content.startswith("/help"):
+                        await help_bot(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
+                        continue
+                    await bot.process_commands(msg)
 
 @bot.event  
 async def on_message(msg):
 
+    while "\"" in msg.content or "\'" in msg.content:
+        cnt = msg.content.replace("\"", "")
+        cnt = cnt.replace("\'", "")
+        msg.content = cnt
+
+    print(f"processing {bot.get_channel(msg.channel.id).name}: {msg.content}...")
+
+    with open("last_reply.json", "r") as f:
+        last_reply = json.load(f)
+    for key in last_reply.keys():
+        if int(key) == msg.channel.id:
+            last_reply[key] = msg.created_at.strftime('%d/%m/%y %H:%M:%S')
+            with open("last_reply.json", "w") as f:
+                json.dump(last_reply, f)
+            break
+
     if msg.author.bot:
         return
 
-    if msg.channel.id in [Constants.BOT_COMMANDS_ID, Constants.BOT_COMMANDS_ID_LOCAL]:
+    if msg.channel.id in [Constants.BOT_COMMANDS_ID, Constants.BOT_COMMANDS_ID_LOCAL]:        
         if not msg.content.startswith("/") and not msg.author.top_role.permissions.administrator:
             await msg.delete()
             await bot.get_channel(msg.channel.id).send("This channel is for bot commands only.", 
@@ -80,7 +135,7 @@ async def on_message(msg):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
-        await ctx.reply(f"Unknown command. Type `/help` to see the lost of commands.")
+        await ctx.reply(f"Unknown command. Type `/help` to see the list of commands.")
         return
     raise error
 
@@ -203,7 +258,7 @@ async def kuwagattan_says(ctx, *message):
         lines.append(cur_line)
         return True, lines
 
-
+    
     line = " ".join(message)
     font_size = 240
     
