@@ -115,7 +115,6 @@ async def on_message(msg):
             for cmd in Constants.HELP_COMMAND:
                 if msg.content.startswith("/" + cmd):
                     await bot.process_commands(msg)
-                    print("Nigga", cmd)
                     break
             else:
                 await msg.delete(delay=30)

@@ -108,6 +108,8 @@ class Constants:
 ```"
 
     HELP_COMMAND = {
+        "reg" : "no translation needed",
+        "drop" : "no translation needed",
         "help" : "Show all bot commands.",
         "reg1vs1" : "Register for the tournament.\n\
 Type: ```/reg class-name1 class-name2 class-name3``` where \
