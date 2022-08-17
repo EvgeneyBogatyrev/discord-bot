@@ -112,7 +112,15 @@ async def on_message(msg):
             if msg.content.startswith("/help"):
                 await help_bot(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
                 return
-            await bot.process_commands(msg)
+            for cmd in Constants.HELP_COMMAND:
+                if msg.content.startswith("/" + cmd):
+                    await bot.process_commands(msg)
+                    break
+            else:
+                await msg.delete(delay=30)
+                await bot.get_channel(msg.channel.id).send("Unknown command. Type `/help` to get the list of commands.", 
+                    delete_after=30)
+
     elif msg.channel.id in [Constants.MEMES_ID, Constants.MEMES_ID_LOCAL]:
         if not msg.content.startswith("/"):
             return
