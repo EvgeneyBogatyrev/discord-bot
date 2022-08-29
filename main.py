@@ -536,6 +536,20 @@ async def reg1vs1(ctx, message):
         await ctx.message.delete(delay=5)
         return
 
+    banned = []
+    with open("data/banlist.json", "r") as f:
+        banlist = json.load(f)
+    for cls in classes:
+        if cls in banlist:
+            banned.append(cls)
+    if len(banned) > 0:
+        line = f'{ctx.author.mention}, the following classes are banned:\n'
+        for cls_name in banned:
+            line += cls_name + "\n"
+        await ctx.send(line)
+        await ctx.message.delete(delay=5)
+        return
+
     rating = get_rating(ctx.author)
     if rating == -1:
         rating = Constants.START_RATING
@@ -642,6 +656,20 @@ async def reg2vs2(ctx, message):
     classes = list(set(classes))
     if len(classes) < pull_size:
         line = f'{ctx.author.mention}, please, select {pull_size} different classes'
+        await ctx.send(line)
+        await ctx.message.delete(delay=5)
+        return
+
+    banned = []
+    with open("data/banlist.json", "r") as f:
+        banlist = json.load(f)
+    for cls in classes:
+        if cls in banlist:
+            banned.append(cls)
+    if len(banned) > 0:
+        line = f'{ctx.author.mention}, the following classes are banned:\n'
+        for cls_name in banned:
+            line += cls_name + "\n"
         await ctx.send(line)
         await ctx.message.delete(delay=5)
         return
@@ -999,10 +1027,22 @@ async def metagame(ctx):
         picture = discord.File(f)
         await ctx.send(file=picture)
 
-    
-    
 
 @bot.command() 
+async def banlist(ctx):
+    with open("data/banlist.json", "r") as f:
+        data = json.load(f)
+    
+    if len(data) == 0:
+        line = "No classes are banned for this tournament."
+    else:
+        line = "The following classes are banned:\n"
+        for name in data:
+            line += name + "\n"
+    
+    await ctx.reply(line)
+
+    
 async def metagame_old(ctx):
     with open("data/status.txt", "r") as f:
         STATUS = f.readline()
@@ -1025,6 +1065,108 @@ async def metagame_old(ctx):
     for elem in sort_data.keys():
         line += f"{elem} : {sort_data[elem]} ({round(100 * sort_data[elem] / summ, 2)}%)\n"
     await ctx.reply(line)
+
+
+@commands.has_permissions(administrator=True)
+@bot.command() 
+async def ban_(ctx, *message):
+    message = list(message)
+    
+    with open("data/banlist.json", "r") as f:
+        data = json.load(f)
+   
+    for name in message:
+        real_name = name.strip().capitalize()
+        if check_class(real_name):
+            data.append(real_name)
+        else:
+            await ctx.reply(f"Unknown class: {name}")
+            return
+
+    data = list(set(data))
+    
+    with open("data/banlist.json", "w") as f:
+        json.dump(data, f)
+    line = f"The following classes are banned:\n\n"
+
+    for class_ in data:
+        line += class_ + "\n"
+
+    await ctx.send(line)
+
+
+@commands.has_permissions(administrator=True)
+@bot.command() 
+async def unban(ctx, *message):
+    message = list(message)
+    data = []
+    for name in message:
+        real_name = name.strip().capitalize()
+        if check_class(real_name):
+            data.append(real_name)
+        else:
+            await ctx.reply(f"Unknown class: {name}")
+            return
+    
+    with open("data/banlist.json", "r") as f:
+        data2 = json.load(f)
+    
+    for name in data[:]:
+        if name in data2:
+            data2.remove(name)
+        else:
+            data.remove(name)
+    
+    with open("data/banlist.json", "w") as f:
+        json.dump(data2, f)
+    
+    line = f"The following classes are unbanned:\n\n"
+
+    for class_ in data:
+        line += class_ + "\n"
+
+    await ctx.send(line)
+
+
+@commands.has_permissions(administrator=True)
+@bot.command() 
+async def ban_meta(ctx, message=1):
+    try:
+        number = int(message)
+    except:
+        number = 1
+    
+    if number < 1:
+        number = 1
+    if number > 28:
+        number = 28
+
+    with open("data/metagame.json", "r") as f:
+        meta_data = json.load(f)
+    if os.path.isfile("data/metagame2vs2.json"):
+        with open("data/metagame2vs2.json", "r") as f:
+            meta_data_2 = json.load(f)
+        for key in meta_data.keys():
+            meta_data[key] += meta_data_2[key]
+
+
+    sort_data = {k: v for k, v in sorted(meta_data.items(), key=lambda item: item[1], reverse=True)}
+    print(sort_data)
+
+    banned_classes = []
+    for i, key in enumerate(sort_data):
+        if i >= number:
+            break
+        banned_classes.append(key)
+    
+    with open("data/banlist.json", "w") as f:
+        json.dump(banned_classes, f)
+    line = f"The following classes are banned:\n\n"
+
+    for class_ in banned_classes:
+        line += class_ + "\n"
+
+    await ctx.send(line)
 
 
 @commands.has_permissions(administrator=True)
@@ -1120,6 +1262,9 @@ async def start_reg(ctx, message):
     STATUS = "REGISTR"
     with open("data/status.txt", "w") as f:
         f.write("REGISTR")
+
+    with open("data/banlist.json", "w") as f:
+        json.dump([], f)
     
     mode = read_mode()
     if mode == "1vs1":

@@ -93,12 +93,16 @@ class Constants:
 /leaderboard                    Show the leaderboard\n\
 /metagame                       Show classes popularity\n\
 /nickname                       Set your Patapon 3 nickname\n\
+/banlist                        Show classes that are banned for this tournament\n\
 /start_reg (admin only)         Start registration for the new tournament\n\
 /end_reg (admin only)           End registration for current tournament\n\
 /start (admin only)             Begin the tournament\n\
 /end_round (admin only)         End round by force\n\
 /restart_round (admin only)     Restart tournament by force\n\
 /drop_player (admin only)       Kick player from the tournament\n\
+/ban_ (admin only)               Ban classes from tournament\n\
+/ban_meta (admins only)         Ban top N meta classes from the tournament\n\
+/unban (admin only)             Unban classes\n\
 ```"
 
     HELP_MEME = "```If you want to see the description of a particular command, type /help command.\n\n\
@@ -140,7 +144,14 @@ Only for admins.",
 Only for admins.",
         "drop_player" :  "Use: ```/drop_player player_tag``` to drop the player from the tournament.\n\
 Only for admins.",
+        "ban_" : "Use ```/ban_ class1 class2 ...``` to ban specific classes from the tournament.\n\
+Only for admins.",
+        "ban_meta" : "Use ```/ban_meta N``` to ban top N meta classes from the tournament. See `/metagame` command.\n\
+Only for admins.",
+        "unban" : "Use ```/unban class1 class2 ...``` to unban specific classes.\n\
+Only for admins.",
         "nickname" : "Use: ```/nickname your-nickname``` to set your Patapon3 nickname.",
+        "banlist" : "Show classes that are banned for the tournament.",
         "pon" : f"`/pon` - generate random Patapon 3 class.\n`/pon X` - generate X random Patapon 3 classes.",
         "kuwagattan_says" : f"Write `/kuwagattan_says any-text`."
     }
