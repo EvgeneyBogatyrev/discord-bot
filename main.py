@@ -6,27 +6,20 @@ import codecs
 import math
 import asyncio
 from random import randint
-import matplotlib.pyplot
 from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
-
-
-COLOR = 'white'
-matplotlib.pyplot.rcParams['text.color'] = COLOR
-matplotlib.pyplot.rcParams['axes.labelcolor'] = COLOR
-matplotlib.pyplot.rcParams['xtick.color'] = COLOR
-matplotlib.pyplot.rcParams['ytick.color'] = COLOR
+import numpy as np
 
 from constants import Constants
 from functions import *
 from async_functions import *
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True
 
 client = discord.Client(intents=intents)
 
-bot = commands.Bot(command_prefix='/')      # bot react on messages that start with '/'
+bot = commands.Bot(command_prefix='!', intents=intents)      # bot react on messages that start with '/'
 bot.remove_command("help")                  # inmplement custom /help command
 
 
@@ -39,8 +32,16 @@ EDITING_PAIRS = False                       # mutex to prevent double reading/wr
 
 @bot.event
 async def on_ready():
-    
-    channels = [Constants.BOT_COMMANDS_ID, Constants.MEMES_ID]
+
+    await bot.get_channel(1001104114522005534).send("Bot is online")
+ 
+    plan_file = open("plan.json", "r")
+    plan = json.load(plan_file)
+    plan_file.close()
+
+    await check_plan(bot.get_channel(Constants.TOURN_STATUS), plan)
+
+    channels = []#[Constants.BOT_COMMANDS_ID, Constants.MEMES_ID]
 
     if not os.path.exists("last_reply.json"):
         last_reply = {}
@@ -70,7 +71,7 @@ async def on_ready():
 
                 if not msg.content.startswith("/") and channel_id == Constants.BOT_COMMANDS_ID:
                     await msg.delete()
-                elif (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says")) and channel_id == Constants.BOT_COMMANDS_ID:
+                elif (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says") or msg.content.startswith("/eye")) and channel_id == Constants.BOT_COMMANDS_ID:
                     await msg.delete()
                 else:
                     if msg.content.startswith("/help"):
@@ -81,11 +82,13 @@ async def on_ready():
 @bot.event  
 async def on_message(msg):
 
+    os.system("~/export.sh")
+
     while "\"" in msg.content:
         cnt = msg.content.replace("\"", "")
         msg.content = cnt
 
-    print(f"processing {bot.get_channel(msg.channel.id).name}: {msg.content}...")
+    #print(f"processing {bot.get_channel(msg.channel.id).name}: {msg.content}...")
 
     with open("last_reply.json", "r") as f:
         last_reply = json.load(f)
@@ -100,20 +103,20 @@ async def on_message(msg):
         return
 
     if msg.channel.id in [Constants.BOT_COMMANDS_ID, Constants.BOT_COMMANDS_ID_LOCAL]:        
-        if not msg.content.startswith("/") and not msg.author.top_role.permissions.administrator:
+        if not msg.content.startswith("!") and not msg.author.top_role.permissions.administrator:
             await msg.delete()
             await bot.get_channel(msg.channel.id).send("This channel is for bot commands only.", 
                 delete_after=30) 
-        elif msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says"):
+        elif msg.content.startswith("!pon") or msg.content.startswith("!kuwagattan_says") or msg.content.startswith("!eye"):
             await msg.delete()
             await bot.get_channel(msg.channel.id).send(f"This channel is for tournaments only. You can send this command in {bot.get_channel(Constants.MEMES_ID).mention}.", 
                 delete_after=30)
         else:
-            if msg.content.startswith("/help"):
+            if msg.content.startswith("!help"):
                 await help_bot(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
                 return
             for cmd in Constants.HELP_COMMAND:
-                if msg.content.startswith("/" + cmd):
+                if msg.content.startswith("!" + cmd):
                     await bot.process_commands(msg)
                     break
             else:
@@ -122,16 +125,16 @@ async def on_message(msg):
                     delete_after=30)
 
     elif msg.channel.id in [Constants.MEMES_ID, Constants.MEMES_ID_LOCAL]:
-        if not msg.content.startswith("/"):
+        if not msg.content.startswith("!"):
             return
         
-        if msg.content.startswith("/help"):
+        if msg.content.startswith("!help"):
             await help_meme(bot.get_channel(msg.channel.id), list(msg.content.split(" "))[1:])
             return
         
         for cmd in Constants.HELP_COMMAND:
-            if msg.content.startswith("/" + cmd):
-                if not (msg.content.startswith("/pon") or msg.content.startswith("/kuwagattan_says")):
+            if msg.content.startswith("!" + cmd):
+                if not (msg.content.startswith("!pon") or msg.content.startswith("!kuwagattan_says") or msg.content.startswith("!eye")):
                     await msg.delete(delay=30)
                     await bot.get_channel(msg.channel.id).send(f"This channel is for MEMES only. You can send this command in {bot.get_channel(Constants.BOT_COMMANDS_ID).mention}.", 
                         delete_after=30)
@@ -141,7 +144,7 @@ async def on_message(msg):
         else:
             await bot.process_commands(msg)
     elif msg.channel.id == Constants.TOURN_STATUS:
-        if not msg.content.startswith("/"):
+        if not msg.content.startswith("!"):
             return
         await bot.process_commands(msg)
 
@@ -149,7 +152,7 @@ async def on_message(msg):
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, CommandNotFound):
-        await ctx.reply(f"Unknown command. Type `/help` to see the list of commands.")
+        await ctx.reply(f"Unknown command. Type `!help` to see the list of commands.")
         return
     raise error
 
@@ -251,6 +254,20 @@ async def drop(ctx):
             
 
 @bot.command()
+async def eye(ctx):
+    import os
+    from random import randint
+    files = os.listdir("eyes")
+    number = randint(0, len(files) - 1)
+
+    add_ach_progress(ctx.author.mention, "eye")
+
+    with open(f'eyes/{files[number]}', 'rb') as f:
+        picture = discord.File(f)
+        await ctx.reply(file=picture)
+
+
+@bot.command()
 async def kuwagattan_says(ctx, *message):
     
     def wrap_text(text, width):
@@ -328,6 +345,8 @@ async def kuwagattan_says(ctx, *message):
 
     my_image.save("./kuw_moded.png")
 
+    add_ach_progress(ctx.author.mention, "kuwagattan")
+
     with open('./kuw_moded.png', 'rb') as f:
         picture = discord.File(f)
         await ctx.reply(file=picture)
@@ -386,6 +405,8 @@ async def pon(ctx, message=None):
 
         chance = randint(1, 100)
         if chance <= 5:
+            add_ach_progress(ctx.author.mention, "pon_video")
+
             await ctx.reply(file=discord.File('./pon.mp4'))
             return
         elif chance <= 10:
@@ -417,20 +438,20 @@ async def help_bot(ctx, message):
             if elem == "drop":
                 status = read_status()
                 if status == "REGISTR":
-                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
+                    await ctx.send("```!drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
                 else:
-                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
+                    await ctx.send("```!drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
             elif elem == "reg":
                 mode = read_mode()
                 if mode == "1vs1":
-                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
+                    await ctx.send("```!reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
                 else:
-                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
-            elif elem in ["pon", "kuwagattan_says"]:
-                line = f"```/{elem}:```\n" + Constants.HELP_COMMAND[elem] + f"\nWorks in {bot.get_channel(Constants.MEMES_ID).mention}"
+                    await ctx.send("```!reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
+            elif elem in ["pon", "kuwagattan_says", "eye"]:
+                line = f"```!{elem}:```\n" + Constants.HELP_COMMAND[elem] + f"\nWorks in {bot.get_channel(Constants.MEMES_ID).mention}"
                 await ctx.send(line)
             elif elem in Constants.HELP_COMMAND:
-                await ctx.send("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
+                await ctx.send("```!" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
             else:
                 bad_commands.append(elem)
         if len(bad_commands) > 0:
@@ -449,20 +470,20 @@ async def help_meme(ctx, message):
             if elem == "drop":
                 status = read_status()
                 if status == "REGISTR":
-                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
+                    await ctx.send("```!drop:```\n" + Constants.HELP_COMMAND["drop-reg"])
                 else:
-                    await ctx.send("```/drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
+                    await ctx.send("```!drop:```\n" + Constants.HELP_COMMAND["drop-tour"])
             elif elem == "reg":
                 mode = read_mode()
                 if mode == "1vs1":
-                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
+                    await ctx.send("```!reg:```\n" + Constants.HELP_COMMAND["reg1vs1"])
                 else:
-                    await ctx.send("```/reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
-            elif elem in ["pon", "kuwagattan_says"]:
-                line = f"```/{elem}:```\n" + Constants.HELP_COMMAND[elem] + f"\nWorks in {bot.get_channel(Constants.MEMES_ID).mention}"
+                    await ctx.send("```!reg:```\n" + Constants.HELP_COMMAND["reg2vs2"])
+            elif elem in ["pon", "kuwagattan_says", "eye"]:
+                line = f"```!{elem}:```\n" + Constants.HELP_COMMAND[elem] + f"\nWorks in {bot.get_channel(Constants.MEMES_ID).mention}"
                 await ctx.send(line)
             elif elem in Constants.HELP_COMMAND:
-                await ctx.send("```/" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
+                await ctx.send("```!" + elem + ":```\n" + Constants.HELP_COMMAND[elem])
             else:
                 bad_commands.append(elem)
         if len(bad_commands) > 0:
@@ -478,6 +499,8 @@ async def reg(ctx, *message):
 
     global STATUS
     STATUS = read_status()
+
+    print(STATUS)
 
     if STATUS != "REGISTR":
         await ctx.reply("The registration has not started yet.\nAsk admins to start the registration.")
@@ -560,6 +583,16 @@ async def reg1vs1(ctx, message):
 
     with open("data/current_tournament.json", "w") as f:
         json.dump(tour_data, f)
+
+    add_ach_progress(ctx.author.mention, "register_1st")
+
+    try:
+        dark_heroes = ["Ragewolf", "Naughtyfins", "Sonarchy", "Ravenous", "Buzzcrave", "Slogturtle", "Covet-hiss"]
+        for cl in classes:
+            if cl in dark_heroes:
+                add_ach_progress(ctx.author.mention, "dark_hero_first")
+    except:
+        print("ERROR IN DARK HERO FIRST")
 
     await ctx.message.delete(delay=5)
     await ctx.send(f"{ctx.author.mention} (Rating: {rating}) has registred successfully.")
@@ -708,6 +741,8 @@ async def nickname(ctx, message):
     data[tag] = str(message)
     with open("data/patapon_names.json", "w") as f:
         json.dump(data, f)
+
+    add_ach_progress(ctx.author.mention, "nickname")
     await ctx.reply("Your nickname has been updated!")
 
 
@@ -878,7 +913,7 @@ async def result(ctx, message):
             break
 
     await ctx.send(f"{opponent}, confirm that you won {opponent_score} and lost {your_score} games against \
-{player_id}.\nTo confirm type /confirm or just wait 2 minutes.\nTo reject type /reject.", delete_after=Constants.CONFIRM_SLEEP)
+{player_id}.\nTo confirm type !confirm or just wait 2 minutes.\nTo reject type !reject.", delete_after=Constants.CONFIRM_SLEEP)
 
     with open("data/await_confirmation.json", "r") as f:
         await_conf = json.load(f)
@@ -960,6 +995,13 @@ async def reject(ctx):
         
 @bot.command() 
 async def metagame(ctx):       
+    
+    with open("/mnt/metagame.png", "rb") as f:
+        picture = discord.File(f)
+        await ctx.send(file=picture)
+    return
+    #await metagame_old(ctx)
+    #return
     with open("data/metagame.json", "r") as f:
         meta_data = json.load(f)
     if os.path.isfile("data/metagame2vs2.json"):
@@ -1040,7 +1082,7 @@ async def banlist(ctx):
         for name in data:
             line += name + "\n"
     
-    await ctx.reply(line)
+    await ctx.send(line)
 
     
 async def metagame_old(ctx):
@@ -1064,7 +1106,7 @@ async def metagame_old(ctx):
     line = "Current metagame:\n"
     for elem in sort_data.keys():
         line += f"{elem} : {sort_data[elem]} ({round(100 * sort_data[elem] / summ, 2)}%)\n"
-    await ctx.reply(line)
+    await ctx.send(line)
 
 
 @commands.has_permissions(administrator=True)
@@ -1184,19 +1226,22 @@ async def end_reg(ctx):
         for j in range(len(data['classes'][part])):
             line += f"{j + 1}. {data['classes'][part][j]}\n"
         line += "\n"
-    await ctx.send(line)
+
+    if len(data["classes"]) < 2:
+        line = f'Only {len(data["classes"])} people have registred, canceling the tournament.\n'
+    await bot.get_channel(1001220951939231744).send(line)
 
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def end_round(ctx):
-    await start_next_round(ctx)
+async def end_round(ctx, round_num=-1):
+    await start_next_round(bot.get_channel(1001220951939231744), round_n = round_num, bot=bot)
 
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
 async def end_tournament(ctx):
-    await end_current_tournament(ctx)
+    await end_current_tournament(bot.get_channel(1001220951939231744), bot)
 
 
 @commands.has_permissions(administrator=True)
@@ -1244,7 +1289,7 @@ async def respond_to(ctx, *message):
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def start_reg(ctx, message):
+async def start_reg(ctx, message="1vs1"):
     if message.strip() == "1vs1":
         with open("data/mode.txt", "w") as f:
             f.write("1vs1")
@@ -1268,11 +1313,19 @@ async def start_reg(ctx, message):
     
     mode = read_mode()
     if mode == "1vs1":
+        banned_classes = get_banned_classes()
+        with open("data/banlist.json", "w") as f:
+            json.dump(banned_classes, f)
         with open(f"data/current_tournament.json", "w") as f:
             data = {"participants" : [], "classes" : {}}
             json.dump(data, f)
-        await ctx.send("@everyone registration for the 1vs1 tournament starts now.\nType /reg and write names of 3 classes you want to play.\n\
-Example: /reg Taterazay Yarida Yumiyacha")
+        message = get_intro_message(banned_classes)
+        await bot.get_channel(1001220951939231744).send(message)
+        message = get_intro_message(banned_classes, eng=True)
+        await bot.get_channel(1001220951939231744).send(message)
+        #await ctx.send("<@&956913343057264641> registration for the 1vs1 tournament starts now.\nType /reg and write names of 3 classes you want to play.\n\
+        #await ctx.send("<@&956913343057264641> registration for the 1vs1 tournament starts now.\nType /reg and write names of 3 classes you want to play.\n\
+#Example: /reg Taterazay Yarida Yumiyacha")
     elif mode == "2vs2":
         with open("data/pull_size.txt", "r") as f:
             pull_size = int(f.readline())
@@ -1280,8 +1333,8 @@ Example: /reg Taterazay Yarida Yumiyacha")
             data = {"participants" : [], "classes" : {}}
             json.dump(data, f)
         patapons = get_random_patapons(pull_size)
-        line = f"@everyone registration for the 2vs2 tournament starts now.\nType /reg and write tag of your partner and {pull_size} classes you want to play.\n"
-        line += "Example: /reg @myfriend"
+        line = f"<@&956913343057264641> registration for the 2vs2 tournament starts now.\nType !reg and write tag of your partner and {pull_size} classes you want to play.\n"
+        line += "Example: !reg @myfriend"
         for i in range(pull_size):
             line += " " + patapons[i]
         line += ""
@@ -1304,7 +1357,16 @@ async def start(ctx):
     participants = sorted(part_data["participants"], key=lambda x: get_rating(x, mention=True), reverse=True)
     part_points = {"participants" : participants, "points" : [0] * len(participants)}
 
+    try:
+        update_log_classes()
+    except:
+        print("Cannot update logs")
+
     part_number_total = len(participants)
+    if part_number_total < 2:
+        with open("data/status.txt", "w") as f:
+            f.write("NONE")
+        return
     log_num = int(math.log2(part_number_total))
     if 2 ** log_num != part_number_total:
         log_num += 1
@@ -1318,6 +1380,280 @@ async def start(ctx):
         f.write("0")
 
     await start_next_round(ctx, no_sort=True, bot=bot)
+
+async def check_plan(ctx, plan, delay=600):
+    cur_weekday, cur_hours, cur_minutes, cur_seconds = get_cur_date()
+    cur_hours += 11
+    if cur_hours >= 24:
+        cur_hours -= 24
+        cur_weekday += 1
+        if cur_weekday > 6:
+            cur_weekday = 0
+    
+    for key in plan.keys():
+        words = key.split("-")
+        weekday = int(words[0])
+        hours = int(words[1])
+        minutes = int(words[2])
+        seconds = int(words[3])
+
+        status = plan[key][1]
+        if status:
+            if cur_weekday == weekday:
+                if cur_hours > hours \
+                    or (cur_hours == hours and cur_minutes > minutes) or \
+                        (cur_hours == hours and cur_minutes == minutes and cur_seconds > seconds):
+                    plan[key][1] = False
+
+                    if plan[key][0] == "relapse":
+                        for key in plan.keys():
+                            plan[key][1] = True
+
+                    plan_dump = open("plan.json", "w")
+                    json.dump(plan, plan_dump)
+                    plan_dump.close()
+
+                    if plan[key][0] != "relapse":
+                        await apply_function(ctx, plan[key][0])
+                    break
+
+    await asyncio.sleep(delay)
+    await check_plan(ctx, plan, delay)
+
+
+async def apply_function(ctx, func):
+    if func == "metagame_old":
+        await metagame_old(ctx)
+    elif func == "relapse":
+        with open("plan.json", "r") as f:
+            plan = json.load(f)
+        for elem in plan.keys():
+            plan[elem][1] = True
+        with open("plan.json", "w") as f:
+            json.dump(plan, f)
+    elif func == "banlist":
+        await banlist(ctx)
+    elif func == "start":
+        await start(ctx)
+    elif func == "start_reg":
+        await start_reg(ctx)
+    elif func == "end_reg":
+        await end_reg(ctx)
+    elif func == "end_round1":
+        await end_round(ctx, round_num = 1)
+    elif func == "end_round2":
+        await end_round(ctx, round_num = 2)
+    elif func == "end_round3":
+        await end_round(ctx, round_num = 3)
+    elif func == "end_tournament":
+        await end_tournament(ctx)
+    elif func == "ping":
+        await ping(ctx)
+    elif func == "leaderboard":
+        await leaderboard(bot.get_channel(1001220951939231744))
+    elif func == "metagame":
+        await metagame(bot.get_channel(1001220951939231744))
+
+@bot.command() 
+async def rules(ctx, *message):
+    rus = False
+    for elem in list(message):
+        if elem == "rus":
+            rus = True
+        elif elem == "en":
+            rus = False
+    with open("data/banlist.json", "r") as f:
+        banned_classes = json.load(f)
+    message = get_rules(banned_classes, eng=not rus)
+    await ctx.send(message)
+
+
+
+@commands.has_permissions(administrator=True)
+@bot.command() 
+async def ping(ctx):
+    #tour_ctx = bot.get_channel() # TODO
+   
+    status = read_status()
+    if status != "TOURN":
+        return
+
+    with open("data/pairs.json", "r") as f:
+        pairs = json.load(f)
+
+    tags = []
+    for pair in pairs:
+        tags.append(pair[0])
+        tags.append(pair[1])
+
+    line = ""
+    for name in tags:
+        line += name + " "
+    line += "\n\nYou still have games left to play in this tournament. Remember to submit your results by tomorrow at 9:00 GMT.\n\n"
+
+    with open("data/current_tournament.json", "r") as f:
+        part_data = json.load(f)
+
+
+    for pair in pairs:
+        line += f"{pair[0]}\n"
+        for j in range(len(part_data['classes'][pair[0]])):
+            line += f"{j + 1}) {part_data['classes'][pair[0]][j]}\n"
+        line += "\nVS\n\n"
+        line += f"{pair[1]}\n"
+        for j in range(len(part_data['classes'][pair[1]])):
+            line += f"{j + 1}) {part_data['classes'][pair[1]][j]}\n"
+        line += "\n\n\n"
+
+    line += "To send the results of your game, go to <#1009215461176647751> and type `!result <your-wins>:<opponent-wins>`\nExample: `!result 3-1`\n\n\n"
+    
+    await ctx.send(line)
+
+@bot.command()
+async def prof(ctx, *message):
+    
+    if len(message) == 0:
+        player = ctx.author.mention
+    else:
+        player = message[0]
+
+    with open("logs/games_data.json", "r") as f:
+        games = json.load(f)
+
+    if player not in games.keys():
+        await ctx.reply("User is not in the database")
+    else:
+        games_data = games[player]
+        number_of_games = len(games_data)
+
+        won_games = 0
+        lost_games = 0
+        won_rounds = 0
+        lost_rounds = 0
+
+        for game in games_data:
+            won_rounds += game[0]
+            lost_rounds += game[1]
+
+            if game[0] > game[1]:
+                won_games += 1
+            else:
+                lost_games += 1
+
+        winrate_games = won_games / (won_games + lost_games)
+        winrate_rounds = won_rounds / (won_rounds + lost_rounds)
+
+        winrate_games = round(100 * winrate_games, 2)
+        winrate_rounds = round(100 * winrate_rounds, 2)
+
+        line = f"Player:\t\t{player}\n```"
+        line += f"Games played:     {number_of_games}\n\n"
+        line += f"Games won:        {won_games}\n"
+        line += f"Games lost:       {lost_games}\n"
+        line += f"Winrate:          {str(winrate_games)}%\n\n"
+        line += f"Rounds won:       {won_rounds}\n"
+        line += f"Rounds lost:      {lost_rounds}\n"
+        line += f"Winrate:          {str(winrate_rounds)}%\n"
+
+        
+        with open("logs/classes.json", 'r') as f:
+            classes_per_player = json.load(f)
+
+        if player in classes_per_player.keys():
+            players_classes = classes_per_player[player]
+            
+            u, count = np.unique(players_classes, return_counts=True)
+            count_sort_ind = np.argsort(-count)
+
+            classes_sorted = u[count_sort_ind]
+            classes_count = count[count_sort_ind]
+
+            try:
+                classes_total_count = len(classes_sorted)
+                add_ach_progress(player, "5_classes", classes_total_count)
+                add_ach_progress(player, "10_classes", classes_total_count)
+                add_ach_progress(player, "15_classes", classes_total_count)
+                add_ach_progress(player, "20_classes", classes_total_count)
+                add_ach_progress(player, "28_classes", classes_total_count)
+            except:
+                print("ERROR in Class Expert")
+
+
+            try:
+                for cl, cnt in zip(classes_sorted, classes_count):
+                    add_ach_progress(player, cl, int(cnt))
+            except:
+                print("ERROR in CLASS MAIN")
+
+
+            add_ach_progress(player, "register_1st")
+
+            line += "\n\nThe most used classes:\n"
+            for i, (cl, cnt) in enumerate(zip(classes_sorted, classes_count)):
+                if i >= 3:
+                    break
+                line += f"{i + 1}) {cl} ({cnt} time"
+                if cnt > 1:
+                    line += "s)\n"
+                else:
+                    line += ")\n"
+        
+
+        with open("ach.json", 'r') as f:
+            ach_data = json.load(f)
+
+        with open('ach_list.json', 'r') as f:
+            ach_list = json.load(f)
+
+        achievements = []
+        if player in ach_data.keys():
+            for achieve in ach_data[player]:
+                has = ach_data[player][achieve]
+                need = ach_list[achieve][0]
+
+                if has >= need:
+                    achievements.append(ach_list[achieve][1:])
+
+        if len(achievements) > 0:
+            line += "\n\nAchievements:\n"
+            for i, elem in enumerate(achievements):
+                line += f"{i + 1}. {elem[0]}\n\t- {elem[1]}\n"
+
+        line += "```"
+
+
+        await ctx.reply(line)
+
+@bot.command()
+async def achievements(ctx):
+    with open('ach.json', 'r') as f:
+        data = json.load(f)
+    with open('ach_list.json', 'r') as f:
+        list_ = json.load(f)
+
+    player = ctx.author.mention
+    line = ""
+    counter = 0
+    for i, elem in enumerate(list_):
+        if player not in data or elem not in data[player]:
+            progress = 0
+        else:
+            progress = data[player][elem]
+        maxim = list_[elem][0]
+        progress = min(progress, maxim)
+        #if "Main" in list_[elem][1] and (progress == 0):
+        #    continue
+        line += f"{counter + 1}. **{list_[elem][1]}** ({progress}/{maxim})\n\t- {list_[elem][2]}\n\n"
+        counter += 1
+        if len(line) > 1800:
+            await ctx.reply(line)
+            line = ""
+
+
+    if len(line) > 0:
+        await ctx.reply(line)
+
+
 
 
 create_missing_data()

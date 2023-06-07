@@ -1,5 +1,6 @@
-data/*
+eyes/*
 __pycache__/
 *.pyc
 metagame.png
 kuw_moded.png
+data/token.txt

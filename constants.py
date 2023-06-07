@@ -83,32 +83,27 @@ class Constants:
         "Я" : "Ya"
     }
 
-    HELP = "```If you want to see the description of a particular command, type /help command.\n\n\
-/help                           Show this message\n\
-/reg                            Register for the tournament\n\
-/result                         Send the result of your match\n\
-/confirm                        Confirm the results of the game your opponent sent\n\
-/reject                         Reject the results of the game your opponent sent\n\
-/drop                           Drop from the tournament\n\
-/leaderboard                    Show the leaderboard\n\
-/metagame                       Show classes popularity\n\
-/nickname                       Set your Patapon 3 nickname\n\
-/banlist                        Show classes that are banned for this tournament\n\
-/start_reg (admin only)         Start registration for the new tournament\n\
-/end_reg (admin only)           End registration for current tournament\n\
-/start (admin only)             Begin the tournament\n\
-/end_round (admin only)         End round by force\n\
-/restart_round (admin only)     Restart tournament by force\n\
-/drop_player (admin only)       Kick player from the tournament\n\
-/ban_ (admin only)               Ban classes from tournament\n\
-/ban_meta (admins only)         Ban top N meta classes from the tournament\n\
-/unban (admin only)             Unban classes\n\
+    HELP = "```If you want to see the description of a particular command, type !help command.\n\n\
+!help               Show this message\n\
+!rules              Show Tournament rules\n\
+!reg                Register for the tournament\n\
+!result             Send the result of your match\n\
+!confirm            Confirm the results of the game your opponent sent\n\
+!reject             Reject the results of the game your opponent sent\n\
+!drop               Drop from the tournament\n\
+!leaderboard        Show the leaderboard\n\
+!metagame           Show classes popularity\n\
+!nickname           Set your Patapon 3 nickname\n\
+!banlist            Show classes that are banned for this tournament\n\
+!prof               Show the status of your games\n\
+!achievements       Show the achievements list and your progress\n\
 ```"
 
     HELP_MEME = "```If you want to see the description of a particular command, type /help command.\n\n\
-/help                           Show this message\n\
-/pon                            Generate random Patapon\n\
-/kuwagattan_says                Generate Kuwagattan quote\n\
+!help                           Show this message\n\
+!pon                            Generate random Patapon\n\
+!kuwagattan_says                Generate Kuwagattan quote\n\
+!eye                            Send random picture of patapon eye\n\
 ```"
 
     HELP_COMMAND = {
@@ -116,13 +111,13 @@ class Constants:
         "drop" : "no translation needed",
         "help" : "Show all bot commands.",
         "reg1vs1" : "Register for the tournament.\n\
-Type: ```/reg class-name1 class-name2 class-name3``` where \
+Type: ```!reg class-name1 class-name2 class-name3``` where \
 class-name1, class-name2, and class-name3 are classes you want to play.",
         "reg2vs2" : "Register for the tournament.\n\
-Type: ```/reg @friend-tag class-name1 class-name2 ...``` where \
+Type: ```!reg @friend-tag class-name1 class-name2 ...``` where \
 class-name1, class-name2, ... are classes you want to play.",
         "result" : "Send the result of your game.\n\
-Type: ```/result your-wins:opponent's-wins```",
+Type: ```!result your-wins:opponent's-wins```",
         "confirm" : "Confirm the results that your last opponent sent.",
         "reject" : "Reject the results that your last opponent sent.",
         "drop-reg" : "Cancel your registration for the tournament.\n\
@@ -133,7 +128,7 @@ You won't be able to come back.",
         "metagame" : "Show the metagame.",
         "start_reg" : "Start the registration for the tournament.\n\
 Only for admins.\n\
-Type: ```/start_reg mode``` where mode is either 1vs1 or 2vs2.",
+Type: ```!start_reg mode``` where mode is either 1vs1 or 2vs2.",
         "end_reg" : "End the registration for the tournament.\n\
 Only for admins.",
         "start" :  "Start the tournament.\n\
@@ -153,5 +148,13 @@ Only for admins.",
         "nickname" : "Use: ```/nickname your-nickname``` to set your Patapon3 nickname.",
         "banlist" : "Show classes that are banned for the tournament.",
         "pon" : f"`/pon` - generate random Patapon 3 class.\n`/pon X` - generate X random Patapon 3 classes.",
-        "kuwagattan_says" : f"Write `/kuwagattan_says any-text`."
+        "kuwagattan_says" : f"Write `/kuwagattan_says any-text`.",
+        "show_status" : "You found a secret command! You can't use it though, it's only for admins",
+        "get_date" : "You found a secret command! You can't use it though, it's only for admins",
+        "eye" : "Send a random picture of a patapon eye.",
+        "rules" : "Show tournament rules.",
+        "ping" : "...",
+        "role" : "...",
+        "prof" : "Show the status of your games.",
+        "achievements" : "Show the list of achievements and your progress."
     }

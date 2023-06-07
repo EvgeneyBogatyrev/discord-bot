@@ -2,6 +2,7 @@ import os
 import json
 import random
 import codecs
+import datetime
 
 from constants import Constants
 
@@ -156,6 +157,10 @@ def create_missing_data():
         with open("data/played_pairs.json", "w") as f:
             json.dump([], f)
 
+    if not os.path.exists("plan.json"):
+        with open("plan.json", "w") as f:
+            json.dump({}, f)
+
 
 def format_to_allowed(line):
     """
@@ -296,3 +301,187 @@ def get_random_patapons(number):
 
     random.shuffle(patapons)
     return patapons[:number]
+
+def get_cur_date():
+    weekday = datetime.datetime.today().weekday()
+    now = datetime.datetime.now()
+
+    current_time = now.strftime("%H:%M:%S")
+    
+    words = current_time.split(":")
+    hours = int(words[0])
+    minutes = int(words[1])
+    seconds = int(words[2])
+
+    return weekday, hours, minutes, seconds
+
+def get_banned_classes():
+    return []
+    # Dark Heroes
+    dh = ["Sonarchy", "Buzzcrave"]
+    banned = []
+    
+    from random import randint
+
+    random_number = randint(0, len(dh) - 1)
+    banned.append(dh[random_number])
+
+    dh.remove(banned[0])
+
+    #random_number = randint(0, len(dh) - 1)
+    #banned.append(dh[random_number])
+
+
+    # Light Heroes
+    with open("data/metagame.json", "r") as f:
+        meta = json.load(f)
+
+    classes = []
+    amount = []
+
+    for class_ in meta.keys():
+        classes.append(class_)
+        amount.append(meta[class_])
+
+    combo = zip(classes, amount)
+    combo = sorted(combo, key=lambda x: x[1], reverse=True)
+
+    classes = [x[0] for x in combo]
+    
+    to_ban = classes[:3]
+
+    #random_number = randint(0, len(to_ban) - 1)
+    #banned.append(to_ban[random_number])
+
+    #to_ban.remove(banned[1])
+
+    #random_number = randint(0, len(to_ban) - 1)
+    #banned.append(to_ban[random_number])
+
+    #to_ban.remove(banned[2])
+
+    #random_number = randint(0, len(to_ban) - 1)
+    #banned.append(to_ban[random_number])
+
+    banned.extend(to_ban)
+
+    return banned
+
+def get_intro_message(banned, eng=False):
+
+    if not eng:
+        with open("data/init_mes.txt", "r")as f:
+            message = f.read()
+    else:
+        with open("data/init_mes_eng.txt", "r") as f:
+            message = f.read()
+
+    message = message.replace("role_id", "<@&956913343057264641>")
+    #message = message.replace("role_id", "<@&1009497359908089886>")
+    message = message.replace("channel_id", "<#1009215461176647751>")
+
+    while len(banned) < 4:
+        banned.append("...")
+
+    message = message.replace("class1", banned[0])
+    message = message.replace("class2", banned[1])
+    message = message.replace("class3", banned[2])
+    message = message.replace("class4", banned[3])
+
+    return message
+
+def get_rules(banned, eng=True):
+
+    if not eng:
+        with open("data/init_mes.txt", "r") as f:
+            message = f.read()
+    else:
+        with open("data/init_mes_eng.txt", "r") as f:
+            message = f.read()
+
+    message = message.replace("role_id", "<@&956913343057264641>")
+    #message = message.replace("role_id", "<@&1009497359908089886>")
+    message = message.replace("channel_id", "<#1009215461176647751>")
+
+    while len(banned) < 4:
+        banned.append("...")
+
+    message = message.replace("class1", banned[0])
+    message = message.replace("class2", banned[1])
+    message = message.replace("class3", banned[2])
+    message = message.replace("class4", banned[3])
+
+    return "\n".join(message.split("\n")[4:-4])
+
+
+def update_log_classes():
+    with open("data/current_tournament.json", "r") as f:
+        data = json.load(f)
+    classes = data["classes"]
+
+    with open("logs/classes.json", "r") as f:
+        cur_classes = json.load(f)
+
+
+    for player in classes.keys():
+        if player not in cur_classes.keys():
+            cur_classes[player] = []
+        cur_classes[player].append(classes[player])
+
+    with open("logs/classes.json", "w") as f:
+        json.dump(cur_classes, f)
+
+def update_log_game(player1, player2, score1, score2):
+
+    if "@" not in player1:
+        player1 = "<@" + player1 + ">"
+    if "@" not in player2:
+        player2 = "<@" + player2 + ">"
+
+    with open("logs/games_data.json", "r") as f:
+        games = json.load(f)
+
+    if player1 not in games.keys():
+        games[player1] = []
+    games[player1].append([score1, score2])
+
+    if player2 not in games.keys():
+        games[player2] = []
+    games[player2].append([score2, score1])
+
+    with open("logs/games_data.json", "w") as f:
+        json.dump(games, f)
+
+
+def add_ach_progress(player, achievement, set_to=-1):
+    try:
+        if achievement == "unique":
+            with open("logs/classes.json", 'r') as f:
+                classes = json.load(f)
+            
+            if player not in classes.keys():
+                return
+
+
+            
+            return
+        else:
+            pass
+    except:
+        pass
+
+    with open("ach.json", "r") as f:
+        ach = json.load(f)
+
+    if player not in ach.keys():
+        ach[player] = {}
+    if achievement not in ach[player].keys():
+        ach[player][achievement] = 0
+    if set_to == -1:
+        ach[player][achievement] += 1
+    else:
+        ach[player][achievement] = set_to
+
+    with open("ach.json", "w") as f:
+        json.dump(ach, f)
+
