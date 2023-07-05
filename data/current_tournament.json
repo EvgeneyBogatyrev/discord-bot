@@ -1,1 +1,24 @@
-{"participants": ["<@370997033479438337>", "<@651753068412534805>", "<@765174393323126815>"], "classes": {"<@370997033479438337>": ["Kibadda", "Alosson", "Guardira"], "<@651753068412534805>": ["Cannassault", "Kibadda", "Yarida"], "<@765174393323126815>": ["Alosson", "Grenburr", "Buzzcrave"]}}
+{
+    "participants": [
+        "<@370997033479438337>",
+        "<@651753068412534805>",
+        "<@765174393323126815>"
+    ],
+    "classes": {
+        "<@370997033479438337>": [
+            "Kibadda",
+            "Alosson",
+            "Guardira"
+        ],
+        "<@651753068412534805>": [
+            "Cannassault",
+            "Kibadda",
+            "Yarida"
+        ],
+        "<@765174393323126815>": [
+            "Alosson",
+            "Grenburr",
+            "Buzzcrave"
+        ]
+    }
+}
