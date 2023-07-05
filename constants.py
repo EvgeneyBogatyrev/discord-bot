@@ -153,5 +153,7 @@ Only for admins.",
         "nickname" : "Use: ```/nickname your-nickname``` to set your Patapon3 nickname.",
         "banlist" : "Show classes that are banned for the tournament.",
         "pon" : f"`/pon` - generate random Patapon 3 class.\n`/pon X` - generate X random Patapon 3 classes.",
-        "kuwagattan_says" : f"Write `/kuwagattan_says any-text`."
+        "kuwagattan_says" : f"Write `/kuwagattan_says any-text`.",
+        "show_status" : "You found a secret command! You can't use it though, it's only for admins",
+        "get_date" : "You found a secret command! You can't use it though, it's only for admins"
     }

@@ -2,6 +2,7 @@ import json
 import math
 from random import randint
 import discord
+import asyncio
 
 from functions import *
 
@@ -89,7 +90,7 @@ async def end_current_tournament(ctx):
     with open("data/status.txt", "w") as f:
         f.write(status)
 
-    await ctx.reply(line)
+    await ctx.send(line)
 
 
 async def start_next_round(ctx, increment=True, no_sort=False, bot=None):
@@ -272,3 +273,4 @@ async def start_next_round(ctx, increment=True, no_sort=False, bot=None):
 
     with open("data/pairs.json", "w") as f:
         json.dump(unresolved, f)
+

@@ -6,27 +6,30 @@ import codecs
 import math
 import asyncio
 from random import randint
-import matplotlib.pyplot
+#import matplotlib.pyplot
 from datetime import datetime
 from PIL import Image, ImageFont, ImageDraw
 
 
-COLOR = 'white'
-matplotlib.pyplot.rcParams['text.color'] = COLOR
-matplotlib.pyplot.rcParams['axes.labelcolor'] = COLOR
-matplotlib.pyplot.rcParams['xtick.color'] = COLOR
-matplotlib.pyplot.rcParams['ytick.color'] = COLOR
+#COLOR = 'white'
+#matplotlib.pyplot.rcParams['text.color'] = COLOR
+#matplotlib.pyplot.rcParams['axes.labelcolor'] = COLOR
+#matplotlib.pyplot.rcParams['xtick.color'] = COLOR
+#matplotlib.pyplot.rcParams['ytick.color'] = COLOR
 
 from constants import Constants
 from functions import *
 from async_functions import *
 
-intents = discord.Intents.default()
+#intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True
 
 client = discord.Client(intents=intents)
 
-bot = commands.Bot(command_prefix='/')      # bot react on messages that start with '/'
+#intents = discord.Intents.default()
+
+bot = commands.Bot(command_prefix='/', intents=intents)      # bot react on messages that start with '/'
 bot.remove_command("help")                  # inmplement custom /help command
 
 
@@ -39,8 +42,12 @@ EDITING_PAIRS = False                       # mutex to prevent double reading/wr
 
 @bot.event
 async def on_ready():
-    
-    channels = [Constants.BOT_COMMANDS_ID, Constants.MEMES_ID]
+
+    await bot.get_channel(1001104114522005534).send("Bot is online")
+
+    await check_plan(bot.get_channel(1001104114522005534))
+
+    channels = []#[Constants.BOT_COMMANDS_ID, Constants.MEMES_ID]
 
     if not os.path.exists("last_reply.json"):
         last_reply = {}
@@ -80,6 +87,8 @@ async def on_ready():
 
 @bot.event  
 async def on_message(msg):
+
+    os.system("~/export.sh")
 
     while "\"" in msg.content:
         cnt = msg.content.replace("\"", "")
@@ -478,6 +487,8 @@ async def reg(ctx, *message):
 
     global STATUS
     STATUS = read_status()
+
+    print(STATUS)
 
     if STATUS != "REGISTR":
         await ctx.reply("The registration has not started yet.\nAsk admins to start the registration.")
@@ -960,6 +971,13 @@ async def reject(ctx):
         
 @bot.command() 
 async def metagame(ctx):       
+    
+    with open("/mnt/metagame.png", "rb") as f:
+        picture = discord.File(f)
+        await ctx.send(file=picture)
+    return
+    #await metagame_old(ctx)
+    #return
     with open("data/metagame.json", "r") as f:
         meta_data = json.load(f)
     if os.path.isfile("data/metagame2vs2.json"):
@@ -1040,7 +1058,7 @@ async def banlist(ctx):
         for name in data:
             line += name + "\n"
     
-    await ctx.reply(line)
+    await ctx.send(line)
 
     
 async def metagame_old(ctx):
@@ -1064,7 +1082,7 @@ async def metagame_old(ctx):
     line = "Current metagame:\n"
     for elem in sort_data.keys():
         line += f"{elem} : {sort_data[elem]} ({round(100 * sort_data[elem] / summ, 2)}%)\n"
-    await ctx.reply(line)
+    await ctx.send(line)
 
 
 @commands.has_permissions(administrator=True)
@@ -1244,7 +1262,7 @@ async def respond_to(ctx, *message):
 
 @commands.has_permissions(administrator=True)
 @bot.command() 
-async def start_reg(ctx, message):
+async def start_reg(ctx, message="1vs1"):
     if message.strip() == "1vs1":
         with open("data/mode.txt", "w") as f:
             f.write("1vs1")
@@ -1305,6 +1323,10 @@ async def start(ctx):
     part_points = {"participants" : participants, "points" : [0] * len(participants)}
 
     part_number_total = len(participants)
+    if part_number_total < 2:
+        with open("data/status.txt", "w") as f:
+            f.write("NONE")
+        return
     log_num = int(math.log2(part_number_total))
     if 2 ** log_num != part_number_total:
         log_num += 1
@@ -1318,6 +1340,61 @@ async def start(ctx):
         f.write("0")
 
     await start_next_round(ctx, no_sort=True, bot=bot)
+
+async def check_plan(ctx, delay=5):
+    cur_weekday, cur_hours, cur_minutes, cur_seconds = get_cur_date()
+
+    with open("plan.json", "r") as f:
+        plan = json.load(f)
+
+    
+    for key in plan.keys():
+        words = key.split("-")
+        weekday = int(words[0])
+        hours = int(words[1])
+        minutes = int(words[2])
+        seconds = int(words[3])
+
+        status = plan[key][1]
+        if status:
+            if cur_weekday == weekday:
+                if cur_hours > hours \
+                    or (cur_hours == hours and cur_minutes > minutes) or \
+                        (cur_hours == hours and cur_minutes == minutes and cur_seconds > seconds):
+                    plan[key][1] = False
+
+                    with open("plan.json", "w") as f:
+                        json.dump(plan, f)
+
+                    await apply_function(ctx, plan[key][0])
+                    break
+
+    await asyncio.sleep(delay)
+    await check_plan(ctx, delay)
+
+
+async def apply_function(ctx, func):
+    if func == "metagame_old":
+        await metagame_old(ctx)
+    elif func == "relapse":
+        with open("plan.json", "r") as f:
+            plan = json.load(f)
+        for elem in plan.keys():
+            plan[elem][1] = True
+        with open("plan.json", "w") as f:
+            json.dump(plan, f)
+    elif func == "banlist":
+        await banlist(ctx)
+    elif func == "start":
+        await start(ctx)
+    elif func == "start_reg":
+        await start_reg(ctx)
+    elif func == "end_reg":
+        await end_reg(ctx)
+    elif func == "end_round":
+        await end_round(ctx)
+    elif func == "end_tournament":
+        await end_tournament(ctx)
 
 
 create_missing_data()

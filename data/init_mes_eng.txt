@@ -1,0 +1,35 @@
+
+The registration for 1vs1 tournament starts now! 
+The tournament starts at **9:15 (GMT) on Friday** and lasts from 2 to 4 days depending on the number of rounds, each of which lasts one day. 
+
+⚔ **Tournament format:**
+* Each player chooses 3 different classes to play (Dark Heroes are also allowed). The player cannot change these classes until the end of the tournament. 
+* In each round a player plays against another player. Each round lasts 24 hours. Each player discusses a convenient time to play with his opponent.
+* Each round is played in a best-of-five format. 
+* If you win a game with any class, you cannot use that class again in that round.
+
+📌 **The tournament rules are as follows:**
+ - Arena of Valor
+ - Time based
+ - Time limit: 15 min. 00 sec.
+ - Four neutral territories
+ - Any gimmick you wish to place.
+
+🔨 **The following classes are banned:**
+ - class1
+ - class2
+ - class3
+ - class4
+
+❌ **You are NOT allowed to:**
+ 1. Use the Pyokorider/Taterazay hero mode
+ 2. Use Sonarchy with the Tropical Tailwind/Soragami Sutra
+ 3. Use Yamagami/Super Yamagami sutra.
+ 4. Use Dolmorn/Oharan.
+ 5. Use Darkvenom/Holymist Staff.
+ 6. Use Howitzer along with the class skill Incendiary Skillz on Cannogabang.
+ 7. Use Grenburr launch bug (for this you need to break rhythm during Grenburr hero mode at the moment of jumping, thus flying a big distance)
+
+✏️📄 **Registration:**
+Go to channel_id, type !reg and type the names of the 3 classes you want to play.
+Example: `!reg Bowmunk Pingrek Destrobo`

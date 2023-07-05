@@ -2,6 +2,7 @@ import os
 import json
 import random
 import codecs
+import datetime
 
 from constants import Constants
 
@@ -156,6 +157,10 @@ def create_missing_data():
         with open("data/played_pairs.json", "w") as f:
             json.dump([], f)
 
+    if not os.path.exists("plan.json"):
+        with open("plan.json", "w") as f:
+            json.dump({}, f)
+
 
 def format_to_allowed(line):
     """
@@ -296,3 +301,16 @@ def get_random_patapons(number):
 
     random.shuffle(patapons)
     return patapons[:number]
+
+def get_cur_date():
+    weekday = datetime.datetime.today().weekday()
+    now = datetime.datetime.now()
+
+    current_time = now.strftime("%H:%M:%S")
+    
+    words = current_time.split(":")
+    hours = int(words[0])
+    minutes = int(words[1])
+    seconds = int(words[2])
+
+    return weekday, hours, minutes, seconds
